@@ -6,3 +6,7 @@ dist
 
 # 用户放入供阅读的版权书籍，不入库
 *.docx
+
+# 后端数据底座：二进制链接库与生成的城市数据不入库（私有）
+resource-library/audio.db
+resource-library/cities/
