@@ -5,8 +5,9 @@
 import musicCities from './music-cities.json';
 import { photoPoints } from './photos';
 import { moviePoints } from './movies';
+import { bookPoints } from './books';
 
-export type MarkerKind = 'music' | 'photo' | 'movie';
+export type MarkerKind = 'music' | 'photo' | 'movie' | 'book';
 
 export interface MapMarker {
   id: string;
@@ -18,13 +19,14 @@ export interface MapMarker {
   full?: string;
 }
 
-// 图例 / 开关用的类型配置：标签 + 颜色（绿=音乐，青=照片，琥珀=电影）
+// 图例 / 开关用的类型配置：标签 + 颜色（绿=音乐，青=照片，琥珀=电影，紫=书）
 export const MARKER_KINDS: { kind: MarkerKind; label: string; color: string }[] = [
   { kind: 'music', label: '音乐', color: '#00ff88' },
   { kind: 'photo', label: '照片', color: '#00e5ff' },
   { kind: 'movie', label: '电影', color: '#ffb000' },
+  { kind: 'book', label: '书', color: '#b388ff' },
 ];
-export const KIND_COLOR: Record<MarkerKind, string> = { music: '#00ff88', photo: '#00e5ff', movie: '#ffb000' };
+export const KIND_COLOR: Record<MarkerKind, string> = { music: '#00ff88', photo: '#00e5ff', movie: '#ffb000', book: '#b388ff' };
 
 // 确定性微偏移：同城 / 重合的点在城市附近散开（约 ±0.03°≈3km），放大后能看出分布在不同位置；
 // 缩小时这点偏移看不出来，由地图层的聚合再把重合的只显示一个。
@@ -57,7 +59,12 @@ const movieMarkers: MapMarker[] = moviePoints.map((m) => ({
   id: 'mv-' + m.id, kind: 'movie', lat: m.lat, lng: m.lng, label: m.title,
 }));
 
-export const MAP_MARKERS: MapMarker[] = [...musicMarkers, ...photoMarkers, ...movieMarkers];
+// 书点：读过的书钉到「故事/作者之地」（坐标在 books.ts），紫色点
+const bookMarkers: MapMarker[] = bookPoints.map((b) => ({
+  id: 'bk-' + b.id, kind: 'book', lat: b.lat, lng: b.lng, label: b.title,
+}));
+
+export const MAP_MARKERS: MapMarker[] = [...musicMarkers, ...photoMarkers, ...movieMarkers, ...bookMarkers];
 
 // 转 GeoJSON，交给 mapbox symbol 图层原生渲染（贴地 / 背面遮挡 / 重叠碰撞都由 mapbox 处理）
 export function toGeoJSON() {

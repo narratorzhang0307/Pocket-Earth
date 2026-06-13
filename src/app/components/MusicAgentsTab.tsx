@@ -4,6 +4,7 @@ import { useState } from 'react';
 import MusicAgentRunPage from './MusicAgentRunPage';
 import PodcastRunPage from './PodcastRunPage';
 import MoviesRunPage from './MoviesRunPage';
+import BooksRunPage from './BooksRunPage';
 
 interface AgentItem {
   name: string;
@@ -26,9 +27,9 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | null;
 const RUN_BY_NAME: Record<string, Running> = {
-  'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
+  'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies', 'books-curator': 'books',
 };
 
 export default function MusicAgentsTab() {
@@ -36,6 +37,7 @@ export default function MusicAgentsTab() {
   if (running === 'music') return <MusicAgentRunPage onBack={() => setRunning(null)} />;
   if (running === 'podcast') return <PodcastRunPage onBack={() => setRunning(null)} />;
   if (running === 'movies') return <MoviesRunPage onBack={() => setRunning(null)} />;
+  if (running === 'books') return <BooksRunPage onBack={() => setRunning(null)} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">
