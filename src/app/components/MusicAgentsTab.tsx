@@ -1,5 +1,7 @@
 // 音乐 tab —— frost-agent 架构控制台：展示 v2.0 各 agent（curator / harness / pipeline）
 // 内容静态提炼自 frost-agent/ARCHITECTURE.md 与各 contract.md
+import { useState } from 'react';
+import MusicAgentRunPage from './MusicAgentRunPage';
 
 interface AgentItem {
   name: string;
@@ -43,6 +45,9 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
 const totalAgents = GROUPS.reduce((n, g) => n + g.items.length, 0);
 
 export default function MusicAgentsTab() {
+  const [running, setRunning] = useState(false);
+  if (running) return <MusicAgentRunPage onBack={() => setRunning(false)} />;
+
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">
       {/* 顶栏状态 */}
@@ -80,24 +85,32 @@ export default function MusicAgentsTab() {
               <span className="text-[9px] text-black/45">{g.sub}</span>
             </div>
             <div className="space-y-2">
-              {g.items.map((a) => (
-                <div
-                  key={a.name}
-                  className="flex items-center gap-3 bg-white border-2 border-black p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)]"
-                >
-                  {/* 绿色方块（呼应地图标记） */}
-                  <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88]">
-                    <div className="w-1.5 h-1.5 bg-[#00ff88]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-pixel text-[9px] tracking-wide truncate">{a.name}</div>
-                    <div className="text-[11px] text-black/60 leading-tight mt-0.5">{a.role}</div>
-                  </div>
-                  <span className="shrink-0 font-pixel text-[6px] uppercase tracking-wider bg-[#00ff88] text-black border border-black px-1.5 py-1">
-                    {a.status}
-                  </span>
-                </div>
-              ))}
+              {g.items.map((a) => {
+                const runnable = a.name === 'music-curator';
+                return (
+                  <button
+                    key={a.name}
+                    onClick={runnable ? () => setRunning(true) : undefined}
+                    className={`w-full text-left flex items-center gap-3 bg-white border-2 border-black p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)] transition-colors ${
+                      runnable ? 'hover:bg-[#00ff88]/10 active:translate-y-px' : 'cursor-default'
+                    }`}
+                  >
+                    {/* 绿色方块（呼应地图标记） */}
+                    <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88]">
+                      <div className="w-1.5 h-1.5 bg-[#00ff88]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-pixel text-[9px] tracking-wide truncate">{a.name}</div>
+                      <div className="text-[11px] text-black/60 leading-tight mt-0.5">{a.role}</div>
+                    </div>
+                    <span className={`shrink-0 font-pixel text-[6px] uppercase tracking-wider border border-black px-1.5 py-1 ${
+                      runnable ? 'bg-black text-[#7CFF6B]' : 'bg-[#00ff88] text-black'
+                    }`}>
+                      {runnable ? '▶ 运行' : a.status}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}

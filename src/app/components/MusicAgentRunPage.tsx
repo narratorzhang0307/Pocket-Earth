@@ -1,0 +1,201 @@
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ArrowUp, Radio } from 'lucide-react';
+import { runFrost } from '../../../frost-agent/harness/router';
+import type { PlaylistEntry } from '../../../frost-agent/harness/types';
+import { buildDayProgram, type DayProgram } from '../../../frost-agent/agents/radio-24h-director';
+import { RADIO_CITIES } from '../../../frost-agent/data/radio';
+
+// music-curator 运行页 —— 电台 agent 的对话闭环（像素风）。
+// 用户说话 → runFrost 路由到子 agent（经 DeepSeek 大脑）→ 展示回复 + thinking trace + 歌单。
+// 点歌单的播放在模块④接入真实音频；此处先把待播曲目交给 onPlay 回调。
+
+interface Turn {
+  role: 'user' | 'frost';
+  text: string;
+  trace?: string[];
+  playlist?: PlaylistEntry[];
+  program?: DayProgram;
+}
+
+interface Props {
+  onBack: () => void;
+  /** 播放歌单（模块④接入真实播放器；未接入时点歌仅暂存提示） */
+  onPlay?: (trackIds: string[], startIndex?: number) => void;
+}
+
+export default function MusicAgentRunPage({ onBack, onPlay }: Props) {
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState('');
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns.length, busy]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || busy) return;
+    setInput('');
+    const history = turns.map((t) => ({ role: t.role, text: t.text }));
+    setTurns((t) => [...t, { role: 'user', text }]);
+    setBusy(true);
+    try {
+      const res = await runFrost({ now: new Date(), userText: text, history });
+      const playlist = (res.data as { playlist?: PlaylistEntry[] } | undefined)?.playlist;
+      setTurns((t) => [...t, { role: 'frost', text: res.reply, trace: res.trace, playlist }]);
+    } catch {
+      setTurns((t) => [...t, { role: 'frost', text: '我这边断了一下，再说一遍？' }]);
+    } finally { setBusy(false); }
+  };
+
+  const generateDay = () => {
+    if (busy) return;
+    const program = buildDayProgram(RADIO_CITIES, new Date());
+    if (!program.slots.length) {
+      setTurns((t) => [...t, { role: 'frost', text: '今夜还排不出节目表，资料库里还没有可播的城市。' }]);
+      return;
+    }
+    setTurns((t) => [...t, { role: 'frost', text: program.reply, program }]);
+  };
+
+  const play = (trackIds: string[], startIndex = 0) => {
+    if (onPlay) { onPlay(trackIds, startIndex); return; }
+    setHint('已加入播放队列（播放器接入中）');
+    setTimeout(() => setHint(''), 1800);
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
+        <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
+          <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="font-pixel text-[11px] tracking-wider truncate">MUSIC-CURATOR</div>
+          <div className="text-[9px] text-black/45 truncate">电台 agent · {RADIO_CITIES.length} 城在库</div>
+        </div>
+        <button onClick={generateDay} disabled={busy} className="flex items-center gap-1 border-2 border-black bg-black text-[#7CFF6B] px-2 py-1.5 font-pixel text-[7px] tracking-widest active:translate-y-px disabled:opacity-40">
+          <Radio className="w-3 h-3" strokeWidth={2.5} /> 24H
+        </button>
+      </div>
+
+      {/* 对话区 */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-3">
+        {turns.length === 0 && (
+          <div className="text-[11px] text-black/45 leading-relaxed bg-white border-2 border-black p-3 shadow-[2px_2px_0_rgba(0,0,0,0.85)]">
+            试试对它说：<br />
+            「我在读海明威，帮我建个阅读歌单」<br />
+            「跟着日落走」「切到东京」「讲讲这座城」
+          </div>
+        )}
+
+        {turns.map((turn, i) => turn.role === 'user' ? (
+          <div key={i} className="self-end max-w-[82%]">
+            <div className="bg-black text-[#7CFF6B] border-2 border-black px-3 py-2 text-[12px] leading-relaxed shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{turn.text}</div>
+          </div>
+        ) : (
+          <div key={i} className="flex flex-col gap-2 max-w-[92%]">
+            <div className="font-pixel text-[7px] tracking-[0.2em] text-black/50">FROST</div>
+            {turn.text && (
+              <div className="bg-white border-2 border-black px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{turn.text}</div>
+            )}
+
+            {/* thinking trace */}
+            {turn.trace && turn.trace.length > 0 && (
+              <div className="border-2 border-black/30 bg-[#E2E2E0]">
+                <div className="px-2.5 py-1 border-b border-black/15 font-pixel text-[6px] tracking-widest text-black/40 uppercase">thinking</div>
+                <div className="px-2.5 py-1.5 space-y-1">
+                  {turn.trace.slice(0, 10).map((step, idx) => (
+                    <div key={idx} className="flex gap-2 text-[10px] leading-snug text-black/45">
+                      <span className="text-black/30 w-4 shrink-0 tabular-nums">{String(idx + 1).padStart(2, '0')}</span>
+                      <span className="min-w-0">{step.replace(/^●\s*/, '')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 歌单 */}
+            {turn.playlist && turn.playlist.length > 0 && (
+              <div className="border-2 border-black bg-white shadow-[2px_2px_0_rgba(0,0,0,0.85)] overflow-hidden">
+                <div className="px-3 py-2 bg-black/5 border-b-2 border-black flex items-center justify-between gap-2">
+                  <span className="font-pixel text-[7px] tracking-widest text-black/55 uppercase">Playlist</span>
+                  <button onClick={() => play(turn.playlist!.map((t) => t.trackId), 0)} className="border-2 border-black bg-[#00ff88] px-2 py-1 font-pixel text-[7px] tracking-wider active:translate-y-px">
+                    ▶ 播放 {turn.playlist.length} 首
+                  </button>
+                </div>
+                <div className="divide-y divide-black/10">
+                  {turn.playlist.slice(0, 8).map((tr, idx) => (
+                    <button key={idx} onClick={() => play(turn.playlist!.map((t) => t.trackId), idx)} className="w-full text-left px-3 py-2 hover:bg-[#00ff88]/10 active:bg-[#00ff88]/20 transition-colors">
+                      <div className="flex gap-2 items-start">
+                        <span className="font-pixel text-[7px] text-black/40 w-4 shrink-0 pt-1">{String(idx + 1).padStart(2, '0')}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] truncate">{tr.title}{tr.artist && <span className="text-black/45"> · {tr.artist}</span>}</div>
+                          <div className="text-[10px] text-black/40 truncate">{tr.cityNameZh}</div>
+                          {tr.note && <div className="text-[10px] text-black/45 leading-snug line-clamp-2 mt-0.5">{tr.note}</div>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 24H 节目表（简化：逐城 + 起播） */}
+            {turn.program && (
+              <div className="border-2 border-black bg-white shadow-[2px_2px_0_rgba(0,0,0,0.85)] overflow-hidden">
+                <div className="px-3 py-2 bg-black text-[#7CFF6B] flex items-center justify-between gap-2">
+                  <span className="font-pixel text-[7px] tracking-widest">24H · 今夜 {turn.program.slots.length} 城</span>
+                  <button onClick={() => play(programTrackIds(turn.program!), 0)} className="border border-[#7CFF6B] px-2 py-0.5 font-pixel text-[7px] tracking-wider active:translate-y-px">▶ 播放</button>
+                </div>
+                <div className="max-h-[260px] overflow-y-auto divide-y divide-black/10">
+                  {turn.program.slots.map((s, si) => {
+                    const offset = turn.program!.slots.slice(0, si).reduce((n, x) => n + x.songs.length, 0);
+                    return (
+                      <button key={s.rank} onClick={() => play(programTrackIds(turn.program!), offset)} className="w-full text-left px-3 py-2 hover:bg-[#00ff88]/10 active:bg-[#00ff88]/20 transition-colors flex items-center gap-2">
+                        <span className="font-pixel text-[8px] text-black/55 w-9 shrink-0 tabular-nums">{s.userClock}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[12px] truncate">{s.cityNameZh} <span className="text-[9px] text-black/35">CH {s.freq.toFixed(1)} · {s.songs.length} 首</span></div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {busy && <div className="font-pixel text-[8px] text-black/45 tracking-widest">⋯ FROST 正在编排 ⋯</div>}
+        <div ref={endRef} />
+      </div>
+
+      {/* 提示条 */}
+      {hint && (
+        <div className="absolute bottom-[64px] left-1/2 -translate-x-1/2 bg-black text-[#7CFF6B] border-2 border-[#7CFF6B] px-3 py-1.5 font-pixel text-[8px] tracking-wider z-20">{hint}</div>
+      )}
+
+      {/* 输入 */}
+      <div className="px-3 py-3 border-t-2 border-black bg-white shrink-0">
+        <form className="flex gap-2 items-center" onSubmit={(e) => { e.preventDefault(); send(); }}>
+          <input
+            type="text" value={input} onChange={(e) => setInput(e.target.value)} disabled={busy}
+            placeholder="对 FROST 说……（Enter 发送）"
+            className="flex-1 h-10 border-2 border-black bg-[#EAEAEA] text-[12px] px-3 outline-none focus:bg-white transition-colors min-w-0 disabled:opacity-50"
+          />
+          <button type="submit" disabled={busy || !input.trim()} className="w-10 h-10 border-2 border-black bg-[#00ff88] flex items-center justify-center active:translate-y-px shrink-0 disabled:opacity-30">
+            <ArrowUp className="w-4 h-4" strokeWidth={3} />
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// 节目表 → 跨城曲目 id 顺序（按 slot 顺序摊平）
+function programTrackIds(program: DayProgram): string[] {
+  const ids: string[] = [];
+  for (const s of program.slots) for (const song of s.songs) ids.push(song.trackId);
+  return ids;
+}
