@@ -1,17 +1,35 @@
-// 照片数据源（解耦）：从本地 resource-library/photos 加载缩略图(thumb)与高清(full)两版，
-// 确定性随机派生「时间 / 日历 / 杂志」三种分布。换照片只换 photos/ 目录，三视图自动重排。
-// 列表展示用 thumb（低清、快），点开看 full（高清）。照片私有不入库；缺失时三视图显示空态。
+// 照片数据源（解耦）：用真实城市坐标（photo-places.json，入库）+ 本地图池（resource-library/photos，
+// 私有不入库）组合出一批照片记录，确定性随机派生「时间 / 日历 / 杂志」三视图，并导出坐标点给地图用。
+// demo 阶段图片在本地图池里循环；换成真照片只需把 photo-places 与图池替换，三视图与地图点自动重排。
+// 列表用 thumb（低清、秒开），点开看 full（高清）。
 
-interface RawPhoto { id: string; thumb: string; full: string }
+import places from './photo-places.json';
 
+interface Place { id: string; city: string; lat: number; lng: number }
+const PLACES = places as Place[];
+
+// 本地图池（缩略 + 高清两版）
 const fullMods = import.meta.glob('../../../resource-library/photos/full/*.jpg', { eager: true, query: '?url', import: 'default' });
 const thumbMods = import.meta.glob('../../../resource-library/photos/thumb/*.jpg', { eager: true, query: '?url', import: 'default' });
 const baseName = (p: string) => p.split('/').pop() || p;
 const thumbBy: Record<string, string> = {};
 for (const [k, v] of Object.entries(thumbMods)) thumbBy[baseName(k)] = v as string;
-const RAW: RawPhoto[] = Object.entries(fullMods)
+const IMG_POOL = Object.entries(fullMods)
   .sort(([a], [b]) => a.localeCompare(b))
-  .map(([k, v]) => ({ id: baseName(k).replace(/\.jpg$/, ''), thumb: thumbBy[baseName(k)] || (v as string), full: v as string }));
+  .map(([k, v]) => ({ thumb: thumbBy[baseName(k)] || (v as string), full: v as string }));
+
+export interface Photo { id: string; city: string; lat: number; lng: number; thumb?: string; full?: string }
+
+// 一条照片记录 = 真实坐标 + 图池里的一张（demo 循环）。图池缺失（clone）时 thumb/full 为空，地图点仍可显示。
+const PHOTOS: Photo[] = PLACES.map((pl, i) => {
+  const img = IMG_POOL.length ? IMG_POOL[i % IMG_POOL.length] : undefined;
+  return { id: pl.id, city: pl.city, lat: pl.lat, lng: pl.lng, thumb: img?.thumb, full: img?.full };
+});
+
+// 给地图用的照片坐标点（即使图池缺失也有，靠 photo-places 入库的坐标）
+export const photoPoints = PHOTOS;
+export const photoTotal = PHOTOS.length;
+export const hasPhotos = IMG_POOL.length > 0;
 
 // —— 确定性伪随机（固定种子，刷新不抖动）——
 function mulberry32(seed: number) {
@@ -24,16 +42,15 @@ function mulberry32(seed: number) {
   };
 }
 const rand = mulberry32(20250613);
-const POOL: RawPhoto[] = [...RAW];
+const POOL: Photo[] = PHOTOS.filter((p) => p.thumb); // 只有带图的进三视图
 for (let i = POOL.length - 1; i > 0; i--) {
   const j = Math.floor(rand() * (i + 1));
   [POOL[i], POOL[j]] = [POOL[j], POOL[i]];
 }
-
 let cursor = 0;
-const take = (n: number): RawPhoto[] => {
+const take = (n: number): Photo[] => {
   if (!POOL.length) return [];
-  const out: RawPhoto[] = [];
+  const out: Photo[] = [];
   for (let i = 0; i < n; i++) out.push(POOL[cursor++ % POOL.length]);
   return out;
 };
@@ -54,6 +71,7 @@ const TL_LABELS: { title: string; sub?: string; special?: boolean }[] = [
   { title: '6月11日', sub: '周三' },
   { title: '6月9日', sub: '周一' },
   { title: '6月7日', sub: '周六' },
+  { title: '6月5日', sub: '周四' },
 ];
 export const timelineGroups: TimelineGroup[] = TL_LABELS.map((l, gi) => {
   const n = 3 + ((gi + 1) % 3); // 3~5 张
@@ -62,9 +80,9 @@ export const timelineGroups: TimelineGroup[] = TL_LABELS.map((l, gi) => {
     ...l,
     photos: take(n).map((p, idx) => ({
       id: p.id + '-' + gi + '-' + idx,
-      cap: `日落 · ${HOURS[(gi + idx) % HOURS.length]}`,
-      img: p.thumb,
-      full: p.full,
+      cap: `${(p.city || '').split(',')[0]} · ${HOURS[(gi + idx) % HOURS.length]}`,
+      img: p.thumb!,
+      full: p.full!,
       rot: ROTS[idx % ROTS.length],
     })),
   };
@@ -73,23 +91,20 @@ export const timelineGroups: TimelineGroup[] = TL_LABELS.map((l, gi) => {
 // —— 日历：2025.06，随机选若干天，每天若干张 ——
 export const calendarPhotos: Record<number, CalendarCell> = {};
 {
-  const cap = Math.min(14, POOL.length ? 14 : 0);
+  const cap = POOL.length ? 18 : 0;
   const litDays = new Set<number>();
   let guard = 0;
   while (litDays.size < cap && guard++ < 400) litDays.add(1 + Math.floor(rand() * 30));
   for (const day of litDays) {
     const cover = take(1)[0];
-    if (cover) calendarPhotos[day] = { thumb: cover.thumb, full: cover.full, count: 1 + Math.floor(rand() * 12) };
+    if (cover) calendarPhotos[day] = { thumb: cover.thumb!, full: cover.full!, count: 1 + Math.floor(rand() * 20) };
   }
 }
 
 // —— 杂志：按年份相册，每年一组 ——
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
 export const magazineYears: MagazineYear[] = YEARS.map((year, yi) => {
-  const n = 6 + ((yi * 2) % 7); // 6~12 张
-  const photos = take(n).map((p, i) => ({ id: p.id + '-' + year + '-' + i, thumb: p.thumb, full: p.full }));
+  const n = 8 + ((yi * 3) % 10); // 8~17 张
+  const photos = take(n).map((p, i) => ({ id: p.id + '-' + year + '-' + i, thumb: p.thumb!, full: p.full! }));
   return { year, cover: photos[0]?.thumb || '', photos };
 }).filter((y) => y.photos.length > 0);
-
-export const photoTotal = POOL.length;
-export const hasPhotos = POOL.length > 0;
