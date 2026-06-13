@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ArrowUp, Radio } from 'lucide-react';
+import { ChevronLeft, ArrowUp, Radio, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { runFrost } from '../../../frost-agent/harness/router';
 import type { PlaylistEntry } from '../../../frost-agent/harness/types';
 import { buildDayProgram, type DayProgram } from '../../../frost-agent/agents/radio-24h-director';
-import { RADIO_CITIES } from '../../../frost-agent/data/radio';
+import { RADIO_CITIES, resolveTracksByIds, type ResolvedTrack } from '../../../frost-agent/data/radio';
 
 // music-curator 运行页 —— 电台 agent 的对话闭环（像素风）。
 // 用户说话 → runFrost 路由到子 agent（经 DeepSeek 大脑）→ 展示回复 + thinking trace + 歌单。
@@ -19,18 +19,32 @@ interface Turn {
 
 interface Props {
   onBack: () => void;
-  /** 播放歌单（模块④接入真实播放器；未接入时点歌仅暂存提示） */
-  onPlay?: (trackIds: string[], startIndex?: number) => void;
 }
 
-export default function MusicAgentRunPage({ onBack, onPlay }: Props) {
+export default function MusicAgentRunPage({ onBack }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
+  // 播放器（封面先空，先让出声闭环跑起来）
+  const [queue, setQueue] = useState<ResolvedTrack[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const cur = queue[idx];
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [turns.length, busy]);
+
+  // 当前曲目 / 播放态变化 → 驱动 <audio>
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a || !cur) return;
+    if (a.src !== cur.audioUrl) { a.src = cur.audioUrl; a.load(); }
+    if (playing) a.play().catch(() => setPlaying(false));
+    else a.pause();
+  }, [idx, queue, playing, cur]);
 
   const send = async () => {
     const text = input.trim();
@@ -59,10 +73,14 @@ export default function MusicAgentRunPage({ onBack, onPlay }: Props) {
   };
 
   const play = (trackIds: string[], startIndex = 0) => {
-    if (onPlay) { onPlay(trackIds, startIndex); return; }
-    setHint('已加入播放队列（播放器接入中）');
-    setTimeout(() => setHint(''), 1800);
+    const tracks = resolveTracksByIds(trackIds);
+    if (!tracks.length) { setHint('没有可播放的曲目'); setTimeout(() => setHint(''), 1800); return; }
+    setQueue(tracks);
+    setIdx(Math.min(Math.max(0, startIndex), tracks.length - 1));
+    setPlaying(true);
   };
+  const prev = () => setIdx((i) => Math.max(0, i - 1));
+  const next = () => setIdx((i) => Math.min(queue.length - 1, i + 1));
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
@@ -175,6 +193,21 @@ export default function MusicAgentRunPage({ onBack, onPlay }: Props) {
       {hint && (
         <div className="absolute bottom-[64px] left-1/2 -translate-x-1/2 bg-black text-[#7CFF6B] border-2 border-[#7CFF6B] px-3 py-1.5 font-pixel text-[8px] tracking-wider z-20">{hint}</div>
       )}
+
+      {/* 播放条（封面先空） */}
+      {cur && (
+        <div className="px-3 py-2 border-t-2 border-black bg-black text-[#7CFF6B] shrink-0 flex items-center gap-2.5">
+          <div className="w-9 h-9 shrink-0 border border-[#7CFF6B]/50 bg-[#0a0a0a]" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] text-white truncate">{cur.title}<span className="text-white/45"> · {cur.artist}</span></div>
+            <div className="font-pixel text-[6px] text-[#7CFF6B]/70 tracking-wider truncate mt-0.5">{cur.cityNameZh} · {idx + 1}/{queue.length}</div>
+          </div>
+          <button onClick={prev} disabled={idx === 0} className="w-7 h-7 flex items-center justify-center disabled:opacity-30 active:scale-95"><SkipBack className="w-4 h-4" fill="currentColor" strokeWidth={0} /></button>
+          <button onClick={() => setPlaying((p) => !p)} className="w-9 h-9 border-2 border-[#7CFF6B] flex items-center justify-center active:scale-95">{playing ? <Pause className="w-4 h-4" fill="currentColor" strokeWidth={0} /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" strokeWidth={0} />}</button>
+          <button onClick={next} disabled={idx >= queue.length - 1} className="w-7 h-7 flex items-center justify-center disabled:opacity-30 active:scale-95"><SkipForward className="w-4 h-4" fill="currentColor" strokeWidth={0} /></button>
+        </div>
+      )}
+      <audio ref={audioRef} onEnded={next} />
 
       {/* 输入 */}
       <div className="px-3 py-3 border-t-2 border-black bg-white shrink-0">
