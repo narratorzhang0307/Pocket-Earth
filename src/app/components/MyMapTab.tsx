@@ -6,7 +6,9 @@ import img4 from '../../imports/image-4.png';
 import img5 from '../../imports/image-5.png';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import EarthMap from './EarthMap';
-import musicCities from '../data/music-cities.json';
+import MapMarkersLayer from './MapMarkersLayer';
+import { MAP_MARKERS, type MarkerKind } from '../data/mapMarkers';
+import MapLegend from './MapLegend';
 
 interface MyMapTabProps {
   onViewInAR?: () => void;
@@ -54,6 +56,14 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
 
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
+  // 地图标记图层：哪些类型可见（音乐 / 照片），由左下角图例开关控制
+  const [visibleKinds, setVisibleKinds] = useState<Set<MarkerKind>>(() => new Set<MarkerKind>(['music', 'photo']));
+  const toggleKind = (k: MarkerKind) =>
+    setVisibleKinds((prev) => {
+      const next = new Set(prev);
+      next.has(k) ? next.delete(k) : next.add(k);
+      return next;
+    });
   // 纯平移时 zoom 不变，需要强制重渲染来更新投影位置
   const [, tick] = useReducer((x) => x + 1, 0);
 
@@ -216,42 +226,19 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
           );
         })}
 
-        {/* 音乐城市点：全球电台城市，落到地球上；缩小到地球视角时显示城市名 */}
-        {map && (() => {
-          const container = map.getContainer();
-          const W = container.clientWidth;
-          const H = container.clientHeight;
-          // 地球档（缩小）才显示城市名，放大后隐藏，避免标签拥挤
-          const labelOpacity = clamp01((5 - zoom) / (5 - 3.2));
-          return musicCities.map((c) => {
-            // 隐藏转到背面/视野外的城市（所有缩放级别都生效，避免街道档出现投影幽灵点）
-            if (centralAngleDeg(mapCenter, [c.lng, c.lat]) > 85) return null;
-            const p = map.project([c.lng, c.lat]);
-            // 视口裁剪：放大到街道级别后，全球城市点落在视野外，不渲染
-            if (p.x < -40 || p.x > W + 40 || p.y < -40 || p.y > H + 40) return null;
-            return (
-              <div
-                key={`music-${c.slug}`}
-                className="absolute z-[5] pointer-events-none -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${p.x}px`, top: `${p.y}px` }}
-              >
-                {/* 绿色方块音乐点（同「上街去」地图标记：黑框 + 绿芯） */}
-                <div className="w-2.5 h-2.5 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88]">
-                  <div className="w-1.5 h-1.5 bg-[#00ff88]" />
-                </div>
-                {/* 城市名（地球档显示） */}
-                {labelOpacity > 0.01 && (
-                  <div
-                    className="absolute left-1/2 top-2 -translate-x-1/2 whitespace-nowrap font-pixel text-[6px] text-[#00ff88] leading-none"
-                    style={{ opacity: labelOpacity, textShadow: '0 0 2px #000,0 0 2px #000' }}
-                  >
-                    {c.nameZh}
-                  </div>
-                )}
-              </div>
-            );
-          });
-        })()}
+        {/* 统一地图标记层：音乐(绿) + 照片(青)；背面隐藏 / 视口裁剪 / 重合聚合都在层内 */}
+        {map && (
+          <MapMarkersLayer
+            map={map}
+            zoom={zoom}
+            mapCenter={mapCenter}
+            markers={MAP_MARKERS}
+            visibleKinds={visibleKinds}
+          />
+        )}
+
+        {/* 左下角图例 + 图层开关（绿=音乐 / 青=照片，可开闭）*/}
+        <MapLegend visibleKinds={visibleKinds} onToggle={toggleKind} />
       </div>
     </div>
   );
