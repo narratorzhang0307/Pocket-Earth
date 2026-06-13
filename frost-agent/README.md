@@ -2,13 +2,15 @@
 
 `frost-agent` 是一套可插拔的 **多 agent Harness（编排框架）** 的初始设计：统一接收用户自然语言，路由到专门的子 agent，生成带「人格声音」的回复、可见的 thinking trace，以及结构化的动作建议（playerActions），再由 Boundary 校验后交给宿主层执行。
 
-它面向「电台 / DJ 式」的内容编排场景，但与任何具体产品、数据集解耦：
+面向世界探索的内容编排场景，与任何具体产品、数据集解耦：
 
 - **零运行时 npm 依赖**：harness 与 agents 都是纯 TypeScript 逻辑。
 - **数据可注入**：默认不内置任何城市/曲目数据，宿主通过 `setStations()` 注入。
 - **模型可插拔**：默认 stub brain；注入 `httpBrain` 即接真实 LLM，无 key 时自动规则兜底。
 
-> 这是设计框架代码 + 契约文档，不是可运行的产品；可整体复用到电台 / 地图 / 内容类应用中。
+> 目标分层架构（Router → Skill → Sub-agent → Tool，端侧 + 云双速模型）见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+
+> 这是设计框架代码 + 契约文档，不是可运行的产品；可整体迁移到电台 / 地图 / 内容类应用中。
 
 ## 1. 能做什么
 

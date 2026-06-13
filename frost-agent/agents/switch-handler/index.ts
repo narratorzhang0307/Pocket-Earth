@@ -5,7 +5,7 @@ import { AgentResult, FrostContext, RadioAction } from '../../harness/types';
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s·・.\-_'’,，。！!]/g, '');
 
-/** 在资源库城市里按中文名/英文名宽松匹配，返回 slug。导出供 LLM 路由复用。 */
+/** 在资源库城市里按中文名/英文名宽松匹配，返回 slug。导出供 LLM 路由调用。 */
 export function matchCity(text: string): { slug: string; cityNameZh: string } | null {
   const t = norm(text);
   for (const c of RADIO_CITIES) {
