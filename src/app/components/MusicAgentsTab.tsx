@@ -6,6 +6,7 @@ import PodcastRunPage from './PodcastRunPage';
 import MoviesRunPage from './MoviesRunPage';
 import BooksRunPage from './BooksRunPage';
 import PhotosCuratorRunPage from './PhotosCuratorRunPage';
+import TravelRunPage from './TravelRunPage';
 
 interface AgentItem {
   name: string;
@@ -23,15 +24,16 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
       { name: 'books-curator', role: '把书钉到故事地 / 作者地 + 读完日期', status: '契约就位' },
       { name: 'movies-curator', role: '把电影钉到取景地 / 故事地', status: '契约就位' },
       { name: 'photos-curator', role: '端侧整理相册，高价值照片钉地球', status: '契约就位' },
+      { name: 'travel-curator', role: '按喜好端侧规划行程，完成即钉星球', status: '契约就位' },
     ],
   },
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | null;
 const RUN_BY_NAME: Record<string, Running> = {
   'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
-  'books-curator': 'books', 'photos-curator': 'photos',
+  'books-curator': 'books', 'photos-curator': 'photos', 'travel-curator': 'travel',
 };
 
 export default function MusicAgentsTab() {
@@ -41,6 +43,7 @@ export default function MusicAgentsTab() {
   if (running === 'movies') return <MoviesRunPage onBack={() => setRunning(null)} />;
   if (running === 'books') return <BooksRunPage onBack={() => setRunning(null)} />;
   if (running === 'photos') return <PhotosCuratorRunPage onBack={() => setRunning(null)} />;
+  if (running === 'travel') return <TravelRunPage onBack={() => setRunning(null)} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">

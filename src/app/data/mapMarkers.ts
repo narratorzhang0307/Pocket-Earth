@@ -7,7 +7,7 @@ import { photoPoints } from './photos';
 import { moviePoints } from './movies';
 import { bookPoints } from './books';
 
-export type MarkerKind = 'music' | 'photo' | 'movie' | 'book';
+export type MarkerKind = 'music' | 'photo' | 'movie' | 'book' | 'travel';
 
 export interface MapMarker {
   id: string;
@@ -19,14 +19,15 @@ export interface MapMarker {
   full?: string;
 }
 
-// 图例 / 开关用的类型配置：标签 + 颜色（绿=音乐，青=照片，琥珀=电影，紫=书）
+// 图例 / 开关用的类型配置：标签 + 颜色（绿=音乐，青=照片，琥珀=电影，紫=书，玫红=行程）
 export const MARKER_KINDS: { kind: MarkerKind; label: string; color: string }[] = [
   { kind: 'music', label: '音乐', color: '#00ff88' },
   { kind: 'photo', label: '照片', color: '#00e5ff' },
   { kind: 'movie', label: '电影', color: '#ffb000' },
   { kind: 'book', label: '书', color: '#b388ff' },
+  { kind: 'travel', label: '行程', color: '#ff3b6b' },
 ];
-export const KIND_COLOR: Record<MarkerKind, string> = { music: '#00ff88', photo: '#00e5ff', movie: '#ffb000', book: '#b388ff' };
+export const KIND_COLOR: Record<MarkerKind, string> = { music: '#00ff88', photo: '#00e5ff', movie: '#ffb000', book: '#b388ff', travel: '#ff3b6b' };
 
 // 确定性微偏移：同城 / 重合的点在城市附近散开（约 ±0.03°≈3km），放大后能看出分布在不同位置；
 // 缩小时这点偏移看不出来，由地图层的聚合再把重合的只显示一个。

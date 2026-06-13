@@ -68,7 +68,7 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   // 地图标记图层：哪些类型可见（音乐 / 照片），由左下角图例开关控制
-  const [visibleKinds, setVisibleKinds] = useState<Set<MarkerKind>>(() => new Set<MarkerKind>(['music', 'photo', 'movie', 'book']));
+  const [visibleKinds, setVisibleKinds] = useState<Set<MarkerKind>>(() => new Set<MarkerKind>(['music', 'photo', 'movie', 'book', 'travel']));
   const toggleKind = (k: MarkerKind) =>
     setVisibleKinds((prev) => {
       const next = new Set(prev);
