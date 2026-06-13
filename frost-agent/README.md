@@ -113,14 +113,13 @@ setFrostBrain(httpBrain);
 
 服务端需提供 `/api/frost-llm`（dev 用 vite middleware，prod 用 Node API）；密钥只从服务端环境变量读取（如 `DEEPSEEK_API_KEY`），不进前端 bundle；无 key / 失败时返回空串，agent 自动走 fallback。
 
-### 3.3 注入数据源
+### 3.3 数据源
 
-框架默认 `RADIO_CITIES = []`。宿主注入自己的城市/曲目数据驱动整条流水线：
+城市/曲目库由 `data/radio.ts` 经 `import.meta.glob` 从 `resource-library/cities/*.json` 自动加载（私有数据不入库；缺失时为空数组，agent 走规则 fallback）。放好 JSON 即驱动整条链路：
 
 ```ts
-import { setStations } from './harness/domain';
-
-setStations(myCities); // 每城至少需要 slug / cityName / ianaTz|tzOffset / station / cover / tracks
+import { RADIO_CITIES, resolveTracksByIds } from './harness/domain'; // 等同 data/radio
+// 每城 JSON 至少需要 slug / cityName / ianaTz|tzOffset / station / cover / tracks
 ```
 
 `tour-director`、`radio-24h-director` 依赖时区与曲目；`open-dj-director` 依赖跨城曲库；`deep-answer` 可用城市文稿做 fallback。
