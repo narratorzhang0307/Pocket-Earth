@@ -22,29 +22,8 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
       { name: 'photos-curator', role: '端侧整理相册，高价值照片钉地球', status: '契约就位' },
     ],
   },
-  {
-    title: 'HARNESS',
-    sub: '内核 · 路由 / 大脑 / 边界',
-    items: [
-      { name: 'router', role: '混合路由：规则秒回 → 大脑 → 兜底', status: '已落地' },
-      { name: 'brain', role: '可插拔云 LLM，无 key 自动降级', status: '已落地' },
-      { name: 'selector', role: '端侧选择 / 排序 / 嵌入（选歌选图）', status: '设计中' },
-      { name: 'validator', role: '动作建议过校验才落地（Boundary）', status: '已落地' },
-      { name: 'memory', role: '会话 + 长期画像', status: '会话级已落地' },
-    ],
-  },
-  {
-    title: 'PIPELINES',
-    sub: '离线流水线 · 后端资产',
-    items: [
-      { name: 'music-pipeline', role: '音频解析 → 入库 audio.db', status: '写库已落地' },
-      { name: 'script-tts-pipeline', role: 'DJ 文稿口语化 → TTS → 写库', status: '部分落地' },
-      { name: 'writer-book', role: '文本抽取分块 → RAG 语料', status: '分块落地' },
-    ],
-  },
 ];
 
-const totalAgents = GROUPS.reduce((n, g) => n + g.items.length, 0);
 
 export default function MusicAgentsTab() {
   const [running, setRunning] = useState<'music' | 'podcast' | null>(null);
@@ -71,9 +50,9 @@ export default function MusicAgentsTab() {
       {/* 状态条 */}
       <div className="px-4 py-2.5 border-b-2 border-black bg-black text-[#00ff88] shrink-0">
         <div className="font-pixel text-[8px] flex justify-between items-center tracking-wider">
-          <span>AGENTS: {totalAgents}</span>
-          <span className="opacity-50">|</span>
           <span>CURATORS: {GROUPS[0].items.length}</span>
+          <span className="opacity-50">|</span>
+          <span>RUNNABLE: 2</span>
           <span className="opacity-50">|</span>
           <span>EDGE+CLOUD</span>
         </div>
