@@ -5,6 +5,7 @@ import { AgentResult, FrostContext, PlaylistEntry } from '../../harness/types';
 import { getFrostBrain } from '../../harness/brain';
 import { cleanVoice } from '../../harness/persona';
 import { formatHistory } from '../../harness/memory';
+import { edgeSelector } from '../../edge/httpEdge';
 
 // 全曲目查找表（跨城）
 const TRACK_LOOKUP = new Map(
@@ -26,20 +27,33 @@ function extractAnchor(text: string): string {
   return text.slice(0, 8) || '今夜';
 }
 
-function buildTrace(anchor: string, n: number, viaLLM: boolean): string[] {
+function buildTrace(anchor: string, n: number, viaLLM: boolean, edgeUsed: boolean): string[] {
   return [
-    'Router → Pi Open DJ Director',
+    'Router → Open DJ Director',
     `Input parsed: 围绕"${anchor}"建立开放歌单`,
-    `Anchor extracted: ${anchor}`,
-    'Mode decision: 开放式 DJ，不进入日落城市编排',
-    viaLLM ? 'Curation: 大脑从跨城曲库挑选并写明每首的贴合理由' : 'Curation: 大脑不可用，跨城取样兜底',
+    edgeUsed ? 'Selector(端侧): 在端上按场景给候选曲目排序（挑）' : 'Selector(端侧): 未就绪，用原候选序',
+    viaLLM
+      ? 'Brain(云): 从候选精选并写每首贴合理由（写）'
+      : (edgeUsed ? 'Curation: 端侧排序结果直接成歌单（云不可用）' : 'Curation: 云不可用，跨城取样兜底'),
     `Queue built: ${n} 首歌，按进入状态 → 展开 → 收束排列`,
     'Playback handoff: 准备把歌单交给可播放电台入口',
   ];
 }
 
-function buildPrompt(text: string, history: string): string {
-  const lib = CANDIDATES.map((c) => `${c.id} | ${c.title} — ${c.artist} · ${c.city}`).join('\n');
+// 端侧 Selector：按用户场景给候选曲目排序（端侧「挑」）。端侧不可用 / stub 时返回原候选序。
+async function edgeRankCandidates(text: string): Promise<{ ranked: typeof CANDIDATES; edgeUsed: boolean }> {
+  try {
+    const scores = await edgeSelector.rank(text, CANDIDATES.map((c) => `${c.title} — ${c.artist} · ${c.city}`));
+    if (scores.length === CANDIDATES.length && scores.some((s) => s > 0)) {
+      const ranked = CANDIDATES.map((c, i) => ({ c, s: scores[i] })).sort((a, b) => b.s - a.s).map((x) => x.c);
+      return { ranked, edgeUsed: true };
+    }
+  } catch { /* 降级 */ }
+  return { ranked: CANDIDATES, edgeUsed: false };
+}
+
+function buildPrompt(text: string, history: string, pool: typeof CANDIDATES): string {
+  const lib = pool.map((c) => `${c.id} | ${c.title} — ${c.artist} · ${c.city}`).join('\n');
   return [
     '你是 Frost（弗洛斯特），深夜电台的开放式 DJ。声音冷静克制、带黄昏与远方，不像产品说明。',
     history,
@@ -75,8 +89,14 @@ export async function runOpenDjDirector(
   const text = (ctx.userText || '').trim();
   const anchor = extractAnchor(text);
 
+  // 端侧「挑」：Selector 按场景给候选曲目排序，缩小给云的候选池
+  const { ranked, edgeUsed } = await edgeRankCandidates(text);
+  // 端侧生效才用它挑出的 top 候选缩小池；端侧未就绪则给云全候选（行为同前）
+  const pool = edgeUsed ? ranked.slice(0, 24) : CANDIDATES;
+
+  // 云「写」：从候选里精选并写每首的贴合理由
   let raw = '';
-  try { raw = (await getFrostBrain().complete(buildPrompt(text, formatHistory(ctx.history)), { json: true })).trim(); } catch { raw = ''; }
+  try { raw = (await getFrostBrain().complete(buildPrompt(text, formatHistory(ctx.history), pool), { json: true })).trim(); } catch { raw = ''; }
 
   if (raw) {
     try {
@@ -90,19 +110,21 @@ export async function runOpenDjDirector(
           reply: cleanVoice(parsed.reply || '') || '为你排好了。',
           data: { anchor, playlist },
           radioActions: [{ type: 'set_playlist', trackIds: playlist.map((p) => p.trackId) }],
-          trace: buildTrace(anchor, playlist.length, true),
+          trace: buildTrace(anchor, playlist.length, true, edgeUsed),
         };
       }
     } catch { /* 落到 fallback */ }
   }
 
-  // 大脑不可用 → 跨城兜底（note 留空，不写套话）
-  const playlist = crossCityFallback(7);
+  // 云不可用 → 端侧排序结果直接成歌单（端侧生效时）；否则跨城兜底
+  const playlist: PlaylistEntry[] = edgeUsed
+    ? ranked.slice(0, 7).map((c) => ({ trackId: c.id, title: c.title, artist: c.artist, cityNameZh: c.city, note: '' }))
+    : crossCityFallback(7);
   return {
     agent: 'open-dj-director',
     reply: `可以。我把「${anchor}」当成这次歌单的场景锚点来排：先抓住它的速度、空间和情绪，再把歌曲按进入状态、展开、收束放好。`,
     data: { anchor, playlist },
     radioActions: playlist.length ? [{ type: 'set_playlist', trackIds: playlist.map((p) => p.trackId) }] : [],
-    trace: buildTrace(anchor, playlist.length, false),
+    trace: buildTrace(anchor, playlist.length, false, edgeUsed),
   };
 }
