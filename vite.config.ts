@@ -3,6 +3,7 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { frostEdge } from './frost-agent/edge/viteEdge'
+import { unsplashProxy } from './frost-agent/planet/viteUnsplash'
 
 // LLM 代理：dev 中间件，把 /api/frost-llm 转给 DeepSeek。
 // 密钥只在服务端（从 .env 读），永不进前端 bundle；无 key / 出错时返回空串，
@@ -55,7 +56,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: process.env.PORT ? Number(process.env.PORT) : 5173,
     },
-    plugins: [react(), tailwindcss(), frostLlm(env), frostEdge(env)],
+    plugins: [react(), tailwindcss(), frostLlm(env), frostEdge(env), unsplashProxy(env)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

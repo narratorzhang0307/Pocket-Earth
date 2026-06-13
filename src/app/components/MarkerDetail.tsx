@@ -16,7 +16,12 @@ export interface MarkerDetailData {
   author?: string; place?: string; note?: string;
   // travel
   tag?: string;
+  // 星球照片署名（Unsplash 合规）
+  authorName?: string; authorLink?: string; photoLink?: string;
 }
+
+const UTM = 'utm_source=pocket_earth&utm_medium=referral';
+const withUtm = (u?: string) => (u ? u + (u.includes('?') ? '&' : '?') + UTM : '');
 
 const onImgErr = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.opacity = '0'; };
 const stars = (r?: number | null) => {
@@ -48,7 +53,13 @@ export default function MarkerDetail({ data, onClose }: { data: MarkerDetailData
             </div>
             <div className="py-2 text-center">
               <div className="font-pixel text-[9px] tracking-widest">{data.city || '照片'}</div>
-              <div className="text-[10px] text-black/45 mt-0.5">● 已钉地球 · LOC_SYNC</div>
+              {data.authorName ? (
+                <div className="text-[10px] text-black/45 mt-0.5">
+                  Photo by <a href={withUtm(data.authorLink)} target="_blank" rel="noopener noreferrer" className="underline">{data.authorName}</a> on <a href={withUtm(data.photoLink)} target="_blank" rel="noopener noreferrer" className="underline">Unsplash</a>
+                </div>
+              ) : (
+                <div className="text-[10px] text-black/45 mt-0.5">● 已钉地球 · LOC_SYNC</div>
+              )}
             </div>
           </div>
         )}

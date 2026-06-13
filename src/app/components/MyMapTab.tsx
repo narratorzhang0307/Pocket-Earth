@@ -8,9 +8,30 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import EarthMap from './EarthMap';
 import { type MarkerKind, KIND_COLOR, toGeoJSON, MAP_MARKERS, photoById, movieById, bookById } from '../data/mapMarkers';
 import { getUserMarks, subscribeUserMarks } from '../data/userMarks';
+import { getPlanets, getVisiblePlanets, subscribePlanets, togglePlanet, removePlanet } from '../data/planets';
+import { trackDownload } from '../data/themePlanet';
 import { AnimatePresence } from 'motion/react';
 import MapLegend from './MapLegend';
 import MarkerDetail, { type MarkerDetailData } from './MarkerDetail';
+
+// 星球图层数据：把所有「可见星球」的照片摊平成 circle 要素（每点带星球色）
+function planetsToGeoJSON() {
+  const features = [];
+  for (const pl of getVisiblePlanets()) {
+    for (const ph of pl.photos) {
+      features.push({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [ph.lng, ph.lat] },
+        properties: { id: ph.id, planetId: pl.id, color: pl.color },
+      });
+    }
+  }
+  return { type: 'FeatureCollection' as const, features };
+}
+function planetPhotoById(id: string) {
+  for (const pl of getPlanets()) { const ph = pl.photos.find((x) => x.id === id); if (ph) return ph; }
+  return null;
+}
 
 // 合并：静态标记（音乐/照片/电影/书）+ 用户运行时落点（各 agent 写入），实时给地球图层
 function buildMarksData() {
@@ -155,6 +176,22 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
         },
         paint: { 'text-color': '#00ff88', 'text-halo-color': '#000', 'text-halo-width': 1.2 },
       } as never);
+      // 星球图层：圆点（区别于基础类的方块），颜色按星球取自要素属性，允许重叠
+      if (!map.getSource('planets')) {
+        map.addSource('planets', { type: 'geojson', data: planetsToGeoJSON() as never });
+        map.addLayer({
+          id: 'planet-layer',
+          type: 'circle',
+          source: 'planets',
+          paint: {
+            'circle-color': ['get', 'color'],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 2.5, 6, 5, 13, 9],
+            'circle-stroke-width': 1.2,
+            'circle-stroke-color': '#000',
+            'circle-opacity': 0.95,
+          },
+        } as never);
+      }
     };
     if (map.isStyleLoaded()) setup();
     else map.once('style.load', setup);
@@ -181,6 +218,17 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
     return subscribeUserMarks(refresh);
   }, [map]);
 
+  // 星球图层联动：建立 / 开关 / 删除星球后刷新图层 + 重渲染（图例 / 预览）
+  useEffect(() => {
+    if (!map) return;
+    const refresh = () => {
+      const src = map.getSource('planets') as mapboxgl.GeoJSONSource | undefined;
+      if (src) src.setData(planetsToGeoJSON() as never);
+      tick();
+    };
+    return subscribePlanets(refresh);
+  }, [map]);
+
   // 点击标记 → 弹出详情；悬停变手型
   useEffect(() => {
     if (!map) return;
@@ -190,13 +238,27 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
       const d = resolveDetail(String(f.properties.id), f.properties.kind as MarkerKind, String(f.properties.label || ''));
       if (d) setSelected(d);
     };
+    const onPlanetClick = (e: mapboxgl.MapLayerMouseEvent) => {
+      const f = e.features && e.features[0];
+      if (!f || !f.properties) return;
+      const ph = planetPhotoById(String(f.properties.id));
+      if (!ph) return;
+      setSelected({ kind: 'photo', full: ph.full, thumb: ph.thumb, city: ph.alt || '照片', authorName: ph.author, authorLink: ph.authorUrl, photoLink: ph.link });
+      trackDownload(ph.downloadLocation); // 看大图触发 Unsplash 合规埋点
+    };
     const enter = () => { map.getCanvas().style.cursor = 'pointer'; };
     const leave = () => { map.getCanvas().style.cursor = ''; };
     const bind = () => {
-      if (!map.getLayer('mark-layer')) return;
-      map.on('click', 'mark-layer', onClick);
-      map.on('mouseenter', 'mark-layer', enter);
-      map.on('mouseleave', 'mark-layer', leave);
+      if (map.getLayer('mark-layer')) {
+        map.on('click', 'mark-layer', onClick);
+        map.on('mouseenter', 'mark-layer', enter);
+        map.on('mouseleave', 'mark-layer', leave);
+      }
+      if (map.getLayer('planet-layer')) {
+        map.on('click', 'planet-layer', onPlanetClick);
+        map.on('mouseenter', 'planet-layer', enter);
+        map.on('mouseleave', 'planet-layer', leave);
+      }
     };
     if (map.isStyleLoaded() && map.getLayer('mark-layer')) bind();
     else map.once('idle', bind);
@@ -204,6 +266,9 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
       map.off('click', 'mark-layer', onClick);
       map.off('mouseenter', 'mark-layer', enter);
       map.off('mouseleave', 'mark-layer', leave);
+      map.off('click', 'planet-layer', onPlanetClick);
+      map.off('mouseenter', 'planet-layer', enter);
+      map.off('mouseleave', 'planet-layer', leave);
     };
   }, [map]);
 
@@ -373,11 +438,36 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
             );
             if (out.length >= 80) break;
           }
+          // 星球照片预览（可见星球，视口内）
+          for (const pl of getVisiblePlanets()) {
+            for (const ph of pl.photos) {
+              if (!b || !b.contains([ph.lng, ph.lat])) continue;
+              const pt = map.project([ph.lng, ph.lat]);
+              out.push(
+                <button
+                  key={'pp-' + ph.id}
+                  className="absolute z-[15] -translate-x-1/2 -translate-y-1/2 w-10 h-10 overflow-hidden active:scale-95"
+                  style={{ left: `${pt.x}px`, top: `${pt.y}px`, border: `2px solid ${pl.color}`, boxShadow: '1px 1px 0 rgba(0,0,0,0.6)' }}
+                  onClick={() => { setSelected({ kind: 'photo', full: ph.full, thumb: ph.thumb, city: ph.alt || '照片', authorName: ph.author, authorLink: ph.authorUrl, photoLink: ph.link }); trackDownload(ph.downloadLocation); }}
+                >
+                  <img src={ph.thumb} alt={ph.alt} className="w-full h-full object-cover" loading="lazy" />
+                </button>
+              );
+              if (out.length >= 140) break;
+            }
+            if (out.length >= 140) break;
+          }
           return out;
         })()}
 
-        {/* 左下角图例 + 图层开关（绿=音乐 / 青=照片 / 琥珀=电影 / 紫=书 / 玫红=行程，可开闭）*/}
-        <MapLegend visibleKinds={visibleKinds} onToggle={toggleKind} />
+        {/* 左下角图例 + 图层开关（基础五类方块 + 用户星球圆点，可开闭）*/}
+        <MapLegend
+          visibleKinds={visibleKinds}
+          onToggle={toggleKind}
+          planets={getPlanets()}
+          onTogglePlanet={togglePlanet}
+          onRemovePlanet={removePlanet}
+        />
       </div>
 
       {/* 标记详情弹层（照片灯箱 / 电影票根 / 藏书票 / 行程足迹 / 音乐城市） */}
