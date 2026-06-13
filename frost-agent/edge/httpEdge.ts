@@ -44,7 +44,7 @@ export const httpEdge: EdgeModel = {
   },
 };
 
-// v2.0 Selector：直接复用端侧三件套。空返回时由调用方走规则兜底。
+// v2.0 Selector：直接沿用端侧三件套。空返回时由调用方走规则兜底。
 export const edgeSelector: Selector = {
   rank: httpEdge.rank,
   classify: httpEdge.classify,
