@@ -31,7 +31,7 @@
 |---|---|---|
 | 左 | **PHOTOS · 照片** | 同一批照片以「时间 / 日历 / 杂志」三种方式呈现（缩略图灰度、点开彩色） |
 | 中 | **🌐 地球** | Mapbox 地球；五类标记 + 用户星球叠加；点开看详情，放大看缩略预览 |
-| 右 | **MUSIC · FROST-AGENT** | 多智能体控制台：6 个 curator + 1 个自定义 agent，全部可运行 |
+| 右 | **AGENTS · FROST-AGENT** | 多智能体控制台：6 curator + 自定义星球 + 多 agent 圆桌议事，全部可运行 |
 
 中间的地球是**统一索引**——所有 agent 的产出最终都落在这里。
 
@@ -106,7 +106,7 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 | **流水线型** | 串行处理链 + 交接契约 | music / books：读记录 → 端侧挑选 → geocode 定位 → mark 落点 |
 | **并行型** | MapReduce，多专家同时跑 | 流派归类用 12 个子 agent 并行分类 619 位艺人；多 curator 可并行委派 |
 | **只读型** | 安全的观察者（只读不写） | 探查 / 检索类委派（如代码探查用 Explore agent） |
-| **团队型** | 自组织协作 | 总 frost-agent 编排多个 curator 协同 |
+| **团队型** | 自组织协作 | 总 frost-agent 编排多 curator 协同；**圆桌议事**让一群 agent 同台辩论（见第五节）|
 
 ---
 
@@ -128,7 +128,30 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 ---
 
-## 五、联动与地图
+## 五、多 Agent 圆桌议事（COUNCIL）
+
+除了「各司其职的 curator」，还有第二种协作形态：让一群 agent **同台讨论**。圆桌议事（控制台 → COUNCIL）是一个**与各 curator 解耦**的独立模块，机制借鉴 openhanako 的「频道群聊」，UI 是 Pocket Earth 自己的像素风。
+
+**你来组局**：8 个独立 agent（读书官 / 影评人 / 选曲师 / 摄影眼 / 旅人 / 造星者 / 庭长 / 抬杠侠），各有领域人设、像素头像与口头梗。点头像选谁入场，出一个议题，挑一种模式：
+
+- 🪑 **圆桌** — 各抒己见、出谋划策
+- 🗣️ **自由辩论** — 针锋相对、互相反驳
+- ⚖️ **法庭** — 正方 / 反方举证质证，最后庭长裁断
+- 💡 **头脑风暴** — 放飞脑洞、互相接梗
+
+**机制（仿 openhanako 频道群聊的纯前端回合引擎，见 `src/app/council/engine.ts`）**：
+
+- **频道即真相** → 内存里的 transcript；每个 agent 发言前，把最近若干条群聊上下文注入它的 prompt（标明谁说了什么），独立生成发言。
+- **有序轮转** → 一个发言序列（轮流 / 法庭正反交替 + 庭长收尾），一次发言 = 一次 LLM 调用，串行推进。
+- **收敛** → 固定轮数 + 用户随时**喊停**（AbortSignal），从机制上避免 agent 之间无限互相回复。
+
+**云端 / 端侧可切**：☁ 云端用 DeepSeek（辩论质量最好）；🖥 端侧用本地 Qwen（**离线可用、隐私不出端**），端侧未就绪时自动回落云端。
+
+解耦体现在：独立目录 `src/app/council/`（`agents` 花名册 + `engine` 回合引擎）+ 独立组件（`PixelAvatar` / `CouncilPage`），只复用已有的 `/api/frost-llm` 与 `/api/edge`，不碰任何 curator 代码。
+
+---
+
+## 六、联动与地图
 
 ### 5.1 tab1 ⇄ tab2 实时联动
 
@@ -154,7 +177,7 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 ---
 
-## 六、数据来源
+## 七、数据来源
 
 | 数据 | 来源 | 是否入库 |
 |---|---|---|
@@ -169,7 +192,7 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 ---
 
-## 七、目录结构
+## 八、目录结构
 
 ```
 src/app/
@@ -178,8 +201,10 @@ src/app/
     MusicCuratorPage / BooksCuratorPage / …      # 双 Tab 容器（数据层 + 对话层）
     CuratorTabsPage / AgentChat                  # 通用双 Tab 与通用对话层
     PhotosCuratorRunPage / TravelRunPage / PlanetBuilderRunPage
+    CouncilPage / PixelAvatar                    # 多 agent 圆桌议事 + 像素头像
+  council/          # 圆桌议事（解耦）：agents 花名册 + engine 回合引擎
   data/             # 解耦数据层：movies / books / musicCatalog / photos / travel
-                    # userMarks / planets（联动 store）/ themePlanet / photoCuration / mapMarkers
+                    # userMarks / planets（联动 store）/ themePlanet / photoCuration / mapMarkers / photo-dates
 
 frost-agent/        # 内核 Harness（详见其 ARCHITECTURE.md / HARNESS-PRINCIPLES.md）
   harness/          # persona / brain / router / llmRoute / memory / validator / types
@@ -193,7 +218,7 @@ resource-library/   # 私有资料库（城市 / 照片 / 音频，gitignore 不
 
 ---
 
-## 八、运行
+## 九、运行
 
 ```bash
 npm install
@@ -211,7 +236,7 @@ npm run dev
 
 ---
 
-## 九、设计原则（呼应 Harness 工程之道）
+## 十、设计原则（呼应 Harness 工程之道）
 
 - **上下文隔离换信噪比**：海量输入的整理留在子 agent 内部，主对话只见结论（舱壁模式）。
 - **工具白名单即边界**：最小权限；落点动作必经 Boundary 校验。
