@@ -37,7 +37,7 @@ export default function PhotosTab() {
       <div className="px-4 py-4 border-b-2 border-black bg-white shrink-0">
         <h1 className="font-pixel text-xl uppercase tracking-wider mb-2">PHOTOS</h1>
         <p className="text-xs text-black/70 tracking-wide font-medium">
-          按时间 / 杂志 / 日历整理你的照片。<br />
+          按时间 / 杂志 / 日历整理你的照片<br />
           <span className="opacity-60 text-[9px] font-pixel block mt-1">Your moments, three ways.</span>
         </p>
       </div>
@@ -157,7 +157,7 @@ export default function PhotosTab() {
                 <div className="h-full flex flex-col">
                   {/* 单页大图 / 瀑布混搭 切换（右上角）*/}
                   <div className="px-4 py-2 flex justify-between items-center shrink-0 border-b border-black/10">
-                    <span className="font-pixel text-[10px] tracking-widest">MAGAZINE · {magMode === 'single' ? '单页' : '混搭'}</span>
+                    <span className="font-pixel text-[10px] tracking-widest">MAGAZINE</span>
                     <button
                       onClick={() => setMagMode((m) => (m === 'single' ? 'mix' : 'single'))}
                       title="单页大图 / 瀑布混搭"

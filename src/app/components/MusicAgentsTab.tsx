@@ -95,7 +95,7 @@ export default function MusicAgentsTab() {
       <div className="px-4 py-4 border-b-2 border-black bg-white shrink-0">
         <h1 className="font-pixel text-xl uppercase tracking-wider mb-2">FROST-AGENT</h1>
         <p className="text-xs text-black/70 tracking-wide font-medium">
-          把地球作为方法的 agent 框架。
+          把地球作为方法的 agent 框架
         </p>
       </div>
 
