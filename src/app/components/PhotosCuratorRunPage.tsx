@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, Image as ImageIcon, Trash2, Download, MapPin } from 'lucide-react';
 import { curated, dupGroups, curationStats, VERDICT_LABEL, VERDICT_COLOR, type CuratedPhoto } from '../data/photoCuration';
 import { edgeSafe } from '../../../frost-agent/edge/contract';
+import { downscaleForVision } from '../lib/imageDownscale';
 
 // photos-curator 运行页 —— 端侧照片整理 agent（Keep One 思路）。
 // 端侧模型持续扫描相册 → 打分 / 打标签(城市·类别·经纬度) / 判定保留-待定-可删 → 输出整理报告；
@@ -61,9 +62,15 @@ export default function PhotosCuratorRunPage({ onBack }: Props) {
       setEdgeScored((m) => ({ ...m, [c.id]: { reason: '端侧看图中…', busy: true } }));
       let score: number | undefined; let reason = '';
       try {
-        const out = await edgeSafe.vision(c.thumb!, '看这张照片，判断收藏价值。只回 JSON：{"score":0到100的整数,"reason":"一句不超过18字的中文理由"}');
-        try { const j = JSON.parse((out || '').replace(/```json|```/g, '').trim()); score = Math.round(Number(j.score)); reason = String(j.reason || '').slice(0, 24); } catch { /* 宽松解析 */ }
-        if (score === undefined || Number.isNaN(score)) { const mt = (out || '').match(/(\d{1,3})/); if (mt) score = Math.min(100, Number(mt[1])); if (!reason) reason = (out || '').replace(/\s+/g, ' ').slice(0, 24); }
+        const img = await downscaleForVision(c.thumb!); // 发图前缩图：真机大图先在端上压小，降端侧 prefill
+        const out = await edgeSafe.vision(img, '看这张照片，判断收藏价值。只回 JSON：{"score":0到100的整数,"reason":"一句不超过18字的中文理由"}');
+        // 端侧小模型输出常带中文引号“”或尾部多余字符，破坏 JSON。先归一引号再 JSON；失败就正则分别抽 score / reason
+        const raw = (out || '').replace(/```json|```/g, '').trim();
+        const norm = raw.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+        const obj = norm.match(/\{[\s\S]*?\}/); // 取第一个 JSON 对象，容忍尾部多余字符（如 }} / 失控尾巴）
+        try { const j = JSON.parse(obj ? obj[0] : norm); score = Math.round(Number(j.score)); reason = String(j.reason || '').slice(0, 24); } catch { /* 退正则 */ }
+        if (score === undefined || Number.isNaN(score)) { const sm = norm.match(/score["']?\s*[:：]\s*["']?(\d{1,3})/) || norm.match(/(\d{1,3})/); if (sm) score = Math.min(100, Number(sm[1])); }
+        if (!reason) { const rm = norm.match(/reason["']?\s*[:：]\s*["']?([^"'}\n]+)/); reason = (rm ? rm[1] : norm.replace(/[{}"]/g, '')).trim().slice(0, 24); }
       } catch { /* 端侧不可用 */ }
       setEdgeScored((m) => ({ ...m, [c.id]: { score, reason: reason || '端侧未就绪', busy: false } }));
     }

@@ -10,7 +10,7 @@
 # 运行：python3 server.py  （或用 serve.sh 带调优参数）
 # 依赖：pymnn(含 LLM 运行时)。安装/编译见 build-mnn.sh 与 README；不同 MNN 版本的 python API
 #       可能略有差异，下方 _load / _infer 两处是唯一需要按你这版 MNN 适配的地方。
-import json, os, re, sys
+import json, os, re, sys, gc
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 TEXT_CONFIG = os.environ.get('MNN_TEXT_CONFIG', '')      # 文本模型 config.json 绝对路径
@@ -19,9 +19,13 @@ PORT = int(os.environ.get('MNN_PORT', '8000'))
 THREAD_NUM = int(os.environ.get('MNN_THREAD_NUM', '4'))  # 绑大核数量
 PRECISION = os.environ.get('MNN_PRECISION', 'low')       # low 换速度
 USE_MMAP = os.environ.get('MNN_USE_MMAP', 'true')        # 防大模型加载闪退
+# 视觉打分提速：发图前缩图(降 prefill) + 视觉每次全新实例(防多模态重用串味/失控) + 截掉失控尾巴
+VISION_MAX_PX = int(os.environ.get('MNN_VISION_MAX_PX', '448'))  # 视觉图最长边上限，越小越快
 
 _FENCE = re.compile(r'^\s*```[a-zA-Z]*\s*|\s*```\s*$')   # 去 Markdown 代码围栏
 _THINK = re.compile(r'<think>.*?</think>', re.S)         # 去思考块(Qwen3 思考模式残留)
+_EOS = re.compile(r'<\|endoftext\|>|<\|im_end\|>')       # 终止符：之后内容一律是失控尾巴
+_RUNAWAY = re.compile(r'(?:\s*\*+\s*-+\s*){3,}.*$', re.S)  # 失控复读尾巴(** --- ** ---…)
 
 _models = {}  # name -> handle
 
@@ -38,17 +42,39 @@ def _load(config_path: str):
     return m
 
 
+def _downscale(raw: bytes) -> bytes:
+    """发图前缩图：最长边压到 VISION_MAX_PX、转 JPEG，显著降低视觉 prefill。无 Pillow / 失败时原样返回。"""
+    if VISION_MAX_PX <= 0:
+        return raw
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(raw)).convert('RGB')
+        w, h = im.size
+        longest = max(w, h)
+        if longest > VISION_MAX_PX:
+            s = VISION_MAX_PX / float(longest)
+            im = im.resize((max(1, int(w * s)), max(1, int(h * s))), Image.LANCZOS)
+        buf = io.BytesIO(); im.save(buf, format='JPEG', quality=82)
+        return buf.getvalue()
+    except Exception:
+        return raw  # 缩图失败不挡推理
+
+
 def _infer(model, prompt: str, images=None) -> str:
-    """单轮推理。文本直接 response；视觉把 base64 写临时文件、用 <img> 标签喂给 Qwen-VL。"""
+    """单轮推理。视觉先缩图、再写临时文件、用 <img> 标签喂给 Qwen-VL。
+    注意：多模态模型这版 MNN 不能跨调用重用(reset/reuse_kv 都会串味/复读/失控)，
+    视觉每次用全新实例，见 do_POST。"""
     if images:
         import base64, tempfile
         tmp, tags = [], ''
         try:
             for img in images:
                 raw = img.split(',', 1)[1] if (img.strip().startswith('data:') and ',' in img) else img
-                fd, path = tempfile.mkstemp(suffix='.png')
+                data = _downscale(base64.b64decode(raw))
+                fd, path = tempfile.mkstemp(suffix='.jpg')
                 with os.fdopen(fd, 'wb') as f:
-                    f.write(base64.b64decode(raw))
+                    f.write(data)
                 tmp.append(path); tags += f'<img>{path}</img>'
             return str(model.response(tags + prompt, stream=False))
         finally:
@@ -70,6 +96,8 @@ def _ensure(name: str):
 
 def _strip_fence(t: str) -> str:
     t = _THINK.sub('', t or '')              # 先去思考块
+    t = _EOS.split(t)[0]                      # 砍掉终止符之后的失控尾巴
+    t = _RUNAWAY.sub('', t)                   # 砍掉 ** --- 复读尾巴
     return _FENCE.sub('', t.strip()).strip()  # 再去代码围栏
 
 
@@ -98,13 +126,23 @@ class H(BaseHTTPRequestHandler):
         try:
             if self.path == '/v1/chat':
                 name = 'vision' if req.get('model') == 'vision' or req.get('images') else 'text'
-                model = _ensure(name)
                 sys_p = (req.get('system') or '').strip()
                 # 防截断：要 JSON 时显式要求纯 JSON、禁代码围栏
                 if req.get('json'):
                     sys_p = (sys_p + '\n只输出纯 JSON，不要 Markdown 代码块、不要 ``` 包裹。').strip()
                 prompt = (sys_p + '\n' + req.get('prompt', '')).strip() if sys_p else req.get('prompt', '')
-                out = _infer(model, prompt, req.get('images'))
+                if name == 'vision':
+                    # 多模态模型不能跨调用重用：每次全新实例(mmap 重载很快)、用完释放，保证稳定无失控
+                    cfg = VISION_CONFIG if (VISION_CONFIG and os.path.isfile(VISION_CONFIG)) else TEXT_CONFIG
+                    if not (cfg and os.path.isfile(cfg)):
+                        raise RuntimeError('vision 模型未配置')
+                    model = _load(cfg)
+                    try:
+                        out = _infer(model, prompt, req.get('images'))
+                    finally:
+                        del model; gc.collect()
+                else:
+                    out = _infer(_ensure(name), prompt, req.get('images'))
                 return self._send({'backend': 'mnn', 'model': name, 'text': _strip_fence(out)})
             if self.path == '/v1/embeddings':
                 # MNN-LLM 主线给 chat；嵌入若无专用头，由上层适配层降级为确定性向量。
