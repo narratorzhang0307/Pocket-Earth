@@ -20,7 +20,7 @@ interface AgentItem {
 const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
   {
     title: 'CURATORS',
-    sub: '落点子 agent · 把对象钉到地球',
+    sub: '子 agent',
     items: [
       { name: 'music-curator', role: '把音乐钉到歌手出身地 / 歌曲城市', status: '契约就位' },
       { name: 'podcast-curator', role: '城市播客：每座城一段深度文化叙事', status: '可运行' },
@@ -79,7 +79,7 @@ export default function MusicAgentsTab() {
       <div className="px-4 py-4 border-b-2 border-black bg-white shrink-0">
         <h1 className="font-pixel text-xl uppercase tracking-wider mb-2">FROST-AGENT</h1>
         <p className="text-xs text-black/70 tracking-wide font-medium">
-          把世界钉到地球上的 agent 框架。<br />
+          把地球作为方法的 agent 框架。<br />
           <span className="opacity-60 text-[9px] font-pixel block mt-1">Router · Skill · Sub-agent · Tool</span>
         </p>
       </div>

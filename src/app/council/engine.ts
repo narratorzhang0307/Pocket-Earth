@@ -1,5 +1,5 @@
 // 圆桌议事 · 回合引擎（解耦、纯逻辑，不含任何 UI）
-// 仿 openhanako 的「频道群聊」精髓做成纯前端回合循环：
+// 「频道群聊」式的纯前端回合循环：
 //   选下一个发言者 → 构造该 agent 看到的群聊上下文 → 调一次云脑(/api/frost-llm) → 追加发言 → 判断是否继续。
 // 收敛靠「固定发言序列（每人 N 轮）+ 用户可随时喊停(AbortSignal)」，天然不会无限互相回复。
 import { agentById, type CouncilAgent } from './agents';

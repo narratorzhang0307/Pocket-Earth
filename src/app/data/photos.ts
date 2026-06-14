@@ -58,7 +58,7 @@ export const photoPoints = PHOTOS;
 export const photoTotal = PHOTOS.length;
 export const hasPhotos = IMG_POOL.length > 0;
 
-// 只有带图的进三视图，且按图片去重：本地图池只有 ~29 张会循环复用，去重后每张图只出现一次，
+// 只有带图的进三视图，且按图片去重：本地图池只有 ~29 张会循环取用，去重后每张图只出现一次，
 // 时间 / 日历 / 杂志都不再出现「同一张照片重复」（世界照片各不相同，全部保留）。
 const seenThumb = new Set<string>();
 const WITHIMG: Photo[] = PHOTOS.filter((p) => {

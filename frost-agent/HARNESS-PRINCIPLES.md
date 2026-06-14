@@ -1,4 +1,4 @@
-# frost-agent v2.0 子 agent 工程原则（提炼自《Harness 工程之道》第 4 章）
+# frost-agent v2.0 子 agent 工程原则（我对 agent harness 的实践沉淀）
 
 下面 13 条原则，每条按「原则 → 在 frost-agent v2.0 里怎么落地」组织。落地部分直接对应现有四层架构（Router → Skill → Sub-agent → Tool）及跨层能力（云 Brain · 端侧 Selector · 长期记忆 · Boundary）。
 
