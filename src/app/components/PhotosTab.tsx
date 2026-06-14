@@ -24,8 +24,6 @@ export default function PhotosTab() {
   const month = calendarMonths[monthIdx] || { label: '', dim: 30, days: {} };
   const monthDays = Array.from({ length: month.dim }, (_, i) => i + 1);
   const cycleMonth = (d: number) => setMonthIdx((i) => (i + d + calendarMonths.length) % calendarMonths.length);
-  // 混搭模式的照片流：每年取若干张，跨年瀑布混排，点任意一张进入它所属年份
-  const magMix = magazineYears.flatMap((y) => y.photos.slice(0, 4).map((p, i) => ({ id: `${y.year}-${i}`, thumb: p.thumb, year: y.year })));
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
@@ -79,7 +77,7 @@ export default function PhotosTab() {
                       <h2 className={`font-pixel text-[12px] ${g.special ? 'text-[#00aa55]' : 'text-black'}`}>{g.title}</h2>
                       {g.sub && <span className="text-[11px] text-black/45">· {g.sub}</span>}
                     </div>
-                    <div className="flex flex-row items-end pl-1">
+                    <div className="flex flex-row items-end pl-1 overflow-x-auto pb-2">
                       {g.photos.map((p, idx) => (
                         <motion.button
                           key={p.id}
@@ -178,7 +176,7 @@ export default function PhotosTab() {
                           onClick={() => setOpenYear(y.year)}
                           className="snap-center block w-full h-[70vh] min-h-[440px] max-h-[640px] relative border-2 border-black shadow-[6px_6px_0_#000] overflow-hidden bg-[#d8d8d6] active:translate-y-px"
                         >
-                          <img src={y.photos[0]?.full || y.cover} onError={onImgErr} className="w-full h-full object-cover" />
+                          <img src={y.photos[0]?.full || y.cover} onError={onImgErr} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
                           <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
                           <div className="absolute bottom-3 left-4 flex items-end gap-2">
                             <span className="font-pixel text-4xl text-[#7CFF6B] drop-shadow-[2px_2px_0_#000]">{y.year}</span>
@@ -188,18 +186,19 @@ export default function PhotosTab() {
                       ))}
                     </div>
                   ) : (
-                    /* 瀑布混搭：跨年照片不同高度混排 */
+                    /* 瀑布混搭：一年一刊，年份封面不同高度混排（黑白，触碰变彩色）*/
                     <div className="flex-1 overflow-y-auto px-3 py-3">
                       <div className="columns-2 gap-2">
-                        {magMix.map((p, i) => (
+                        {magazineYears.map((y, i) => (
                           <button
-                            key={p.id}
-                            onClick={() => setOpenYear(p.year)}
+                            key={y.year}
+                            onClick={() => setOpenYear(y.year)}
                             className="break-inside-avoid mb-2 block w-full relative border-2 border-black shadow-[3px_3px_0_#000] overflow-hidden bg-[#d8d8d6] active:translate-y-px"
                           >
-                            <img src={p.thumb} onError={onImgErr} className="w-full object-cover" style={{ aspectRatio: ['3 / 4', '1 / 1', '4 / 5', '3 / 4', '1 / 1', '4 / 5'][i % 6] }} />
-                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/65 to-transparent px-2 py-1">
-                              <span className="font-pixel text-[11px] text-[#7CFF6B] drop-shadow-[1px_1px_0_#000]">{p.year}</span>
+                            <img src={y.cover} onError={onImgErr} className="w-full object-cover grayscale hover:grayscale-0 transition-all" style={{ aspectRatio: ['3 / 4', '1 / 1', '4 / 5', '1 / 1', '3 / 4', '4 / 5'][i % 6] }} />
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 flex items-end justify-between">
+                              <span className="font-pixel text-xl text-[#7CFF6B] drop-shadow-[1px_1px_0_#000]">{y.year}</span>
+                              <span className="font-pixel text-[7px] text-white/80 mb-1">{y.photos.length} 张</span>
                             </div>
                           </button>
                         ))}
