@@ -10,6 +10,8 @@ import { type MarkerKind, KIND_COLOR, toGeoJSON, MAP_MARKERS, photoById, movieBy
 import { getUserMarks, subscribeUserMarks } from '../data/userMarks';
 import { getPlanets, getVisiblePlanets, subscribePlanets, togglePlanet, removePlanet } from '../data/planets';
 import { trackDownload } from '../data/themePlanet';
+import { getMoodStickers, addMoodSticker, removeMoodSticker, subscribeMood, resolveMoodPlace, pickStickerColor, pickRot } from '../data/geoStickers';
+import { Plus, X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import MapLegend from './MapLegend';
 import MarkerDetail, { type MarkerDetailData } from './MarkerDetail';
@@ -122,6 +124,10 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
     });
   // 纯平移时 zoom 不变，需要强制重渲染来更新投影位置
   const [, tick] = useReducer((x) => x + 1, 0);
+  // 心情贴：左上角加号 → 写心情 → 端侧判经纬度 → 钉到地图
+  const [moodOpen, setMoodOpen] = useState(false);
+  const [moodText, setMoodText] = useState('');
+  const [moodBusy, setMoodBusy] = useState(false);
   // 点击标记后的详情弹层
   const [selected, setSelected] = useState<MarkerDetailData | null>(null);
 
@@ -229,6 +235,9 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
     return subscribePlanets(refresh);
   }, [map]);
 
+  // 心情贴变化 → 重渲染（DOM 叠层，钉地理坐标）
+  useEffect(() => subscribeMood(() => tick()), []);
+
   // 点击标记 → 弹出详情；悬停变手型
   useEffect(() => {
     if (!map) return;
@@ -285,6 +294,19 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   const mapCenter: [number, number] = map
     ? [map.getCenter().lng, map.getCenter().lat]
     : WEST_LAKE_CENTER;
+
+  // 贴心情：端侧从文字判地名 → 经纬度（判不出用当前地图中心）→ 钉下并飞过去
+  const submitMood = async () => {
+    const t = moodText.trim();
+    if (!t || moodBusy) return;
+    setMoodBusy(true);
+    const center: [number, number] = map ? [map.getCenter().lng, map.getCenter().lat] : WEST_LAKE_CENTER;
+    const { place, lng, lat } = await resolveMoodPlace(t, center);
+    const id = 'mood-' + Date.now();
+    addMoodSticker({ id, lat, lng, text: t, place, color: pickStickerColor(t), rot: pickRot(id) });
+    setMoodText(''); setMoodOpen(false); setMoodBusy(false);
+    if (map) map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 3.2) });
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#EAEAEA] font-sans relative overflow-hidden">
@@ -459,6 +481,44 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
           }
           return out;
         })()}
+
+        {/* 心情贴（自带经纬度，钉地理坐标，缩放/平移不跟屏幕跑）*/}
+        {map && getMoodStickers().map((s) => {
+          if (zoom < 5 && centralAngleDeg(mapCenter, [s.lng, s.lat]) > 78) return null;
+          const pt = map.project([s.lng, s.lat]);
+          return (
+            <div key={s.id} className="absolute z-[18] -translate-x-1/2 -translate-y-full group pointer-events-auto" style={{ left: `${pt.x}px`, top: `${pt.y}px` }}>
+              <div className="relative border-2 border-black shadow-[2px_3px_0_rgba(0,0,0,0.6)] px-2 py-1.5 max-w-[150px]" style={{ background: s.color, transform: `rotate(${s.rot}deg)` }}>
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#ff00ff] border-2 border-black" />
+                <div className="text-[11px] leading-snug text-black font-medium break-words">{s.text}</div>
+                <div className="font-pixel text-[6px] text-black/55 tracking-wider mt-1">◍ {s.place} · 心情贴</div>
+                <button onClick={() => removeMoodSticker(s.id)} className="absolute -top-2.5 -right-2.5 w-4 h-4 bg-black border border-black text-white items-center justify-center hidden group-hover:flex">
+                  <X className="w-2.5 h-2.5" strokeWidth={3} />
+                </button>
+              </div>
+              <div className="w-px h-2 bg-black/50 mx-auto" />
+            </div>
+          );
+        })}
+
+        {/* 左上角：贴一条心情 */}
+        <div className="absolute top-3 left-3 z-20 pointer-events-auto">
+          {moodOpen ? (
+            <div className="bg-white border-2 border-black shadow-[2px_2px_0_#000] p-2 w-[210px]">
+              <div className="font-pixel text-[7px] tracking-widest mb-1.5 text-black/55">此刻的心情 · MOOD</div>
+              <textarea value={moodText} onChange={(e) => setMoodText(e.target.value)} rows={2} placeholder="留下此刻的心情（可带地名）…" className="w-full border-2 border-black px-2 py-1 text-[11px] bg-[#EAEAEA] focus:outline-none resize-none" />
+              <div className="flex gap-1.5 mt-1.5">
+                <button onClick={() => { setMoodOpen(false); setMoodText(''); }} className="flex-1 border-2 border-black bg-white text-[10px] py-1 active:translate-y-px">取消</button>
+                <button onClick={submitMood} disabled={moodBusy || !moodText.trim()} className="flex-1 border-2 border-black bg-[#ffe08a] text-[10px] font-bold py-1 active:translate-y-px disabled:opacity-40">{moodBusy ? '识别中…' : '钉下 ◍'}</button>
+              </div>
+              <div className="font-pixel text-[6px] text-black/40 mt-1 leading-snug">端侧判地名 → 钉地理坐标，缩放不跟跑</div>
+            </div>
+          ) : (
+            <button onClick={() => setMoodOpen(true)} title="贴一条心情" className="w-10 h-10 bg-[#ffe08a] border-2 border-black shadow-[2px_2px_0_#000] flex items-center justify-center active:translate-y-px">
+              <Plus className="w-5 h-5" strokeWidth={3} />
+            </button>
+          )}
+        </div>
 
         {/* 左下角图例 + 图层开关（基础五类方块 + 用户星球圆点，可开闭）*/}
         <MapLegend
