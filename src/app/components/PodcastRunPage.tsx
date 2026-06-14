@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, Play, Pause, Mic } from 'lucide-react';
+import { ChevronLeft, Play, Pause, Mic, Maximize2 } from 'lucide-react';
 import { RADIO_CITIES } from '../../../frost-agent/data/radio';
+import { RadioStage } from './radio/RadioStage';
 
 // podcast-curator 运行页 —— 城市播客：每座城一段深度文化叙事（文稿 + DJ 音频）。
 // 与 music-curator 同源（同一资料库），但策展的是「城市播客」而非歌单。
@@ -27,6 +28,7 @@ export default function PodcastRunPage({ onBack, embedded }: Props) {
   const [sel, setSel] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [srcMode, setSrcMode] = useState<'real' | 'fallback'>('real');
+  const [stageSlug, setStageSlug] = useState<string | null>(null); // 进入沉浸式电台（播客形态）
   const audioRef = useRef<HTMLAudioElement>(null);
   const playingRef = useRef(false);
   const idx = PODS.findIndex((p) => p.slug === sel);
@@ -122,9 +124,16 @@ export default function PodcastRunPage({ onBack, embedded }: Props) {
           <button onClick={() => setPlaying((p) => !p)} className="w-9 h-9 border-2 border-[#00ff88] flex items-center justify-center active:scale-95">
             {playing ? <Pause className="w-4 h-4" fill="currentColor" strokeWidth={0} /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" strokeWidth={0} />}
           </button>
+          {/* 进入沉浸式电台（城市大图 + 稿子随声音逐字浮现 + 与 frost 对话） */}
+          <button onClick={() => { setPlaying(false); setStageSlug(cur.slug); }} title="进入电台（沉浸播放）" className="w-9 h-9 border-2 border-[#00ff88] flex items-center justify-center active:scale-95">
+            <Maximize2 className="w-4 h-4" strokeWidth={2.5} />
+          </button>
         </div>
       )}
       <audio ref={audioRef} onEnded={() => setPlaying(false)} />
+
+      {/* 沉浸式电台播放台（播客形态进入；含音乐/播客两种形态切换） */}
+      <RadioStage isOpen={!!stageSlug} onClose={() => setStageSlug(null)} startCitySlug={stageSlug ?? undefined} startMode="podcast" />
     </div>
   );
 }
