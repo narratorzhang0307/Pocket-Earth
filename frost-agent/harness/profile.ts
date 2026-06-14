@@ -6,6 +6,8 @@
 // 隐私边界（重要）：本模块只在【云脑侧】(httpBrain / 对话注入) 读取使用，
 // 端侧 Selector（/api/edge）一律不接触本模块，画像不出端到端侧模型。
 
+import type { FrostBrain } from './types';
+
 export type ProfileDomain = 'books' | 'movies' | 'music' | 'photos' | 'travel';
 
 export interface TagCount { tag: string; n: number }
@@ -85,4 +87,72 @@ export function clearProfile(): void {
 export function subscribeProfile(fn: () => void): () => void {
   subs.add(fn);
   return () => { subs.delete(fn); };
+}
+
+// ——————————————————————————————————————————————
+// 画像摘要：注入云脑提示用（结构化、便宜、总是新鲜）
+// ——————————————————————————————————————————————
+const DOMAIN_LABEL: Record<string, string> = { movies: '电影', books: '书', music: '音乐', photos: '照片', travel: '行程' };
+const FIELD_LABEL: Record<string, string> = {
+  directors: '常看导演', countries: '偏好国别', authors: '偏爱作者', storyPlaces: '故事地',
+  artists: '常听艺人', genres: '流派', moods: '情绪', cities: '城市', aesthetics: '风格',
+};
+
+function topTags(list: TagCount[], k: number): string[] { return list.slice(0, k).map((t) => t.tag); }
+
+/** 把画像格式化成一段可直接塞进云脑提示的文本（无数据返回空串）。 */
+export function getProfileSummary(opts?: { perField?: number }): string {
+  const k = opts?.perField ?? 5;
+  const lines: string[] = [];
+  for (const [domain, fields] of Object.entries(profile.domains)) {
+    const parts: string[] = [];
+    for (const [field, list] of Object.entries(fields)) {
+      if (!list || !list.length) continue;
+      parts.push(`${FIELD_LABEL[field] || field} ${topTags(list, k).join('、')}`);
+    }
+    if (parts.length) lines.push(`- ${DOMAIN_LABEL[domain] || domain}：${parts.join('；')}`);
+  }
+  if (!lines.length) return '';
+  return `# 你的长期口味画像（跨会话沉淀，仅供参考）\n${lines.join('\n')}\n`;
+}
+
+// ——————————————————————————————————————————————
+// C · fingerprint 缓存：口味一句话只在画像「实质变化」时才请一次云脑（成本护盾）
+// ——————————————————————————————————————————————
+function fnv(s: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+}
+
+/** 画像签名：只取每字段 top 标签，签名不变=口味没实质变化，可跳过云脑重算。 */
+export function profileFingerprint(): string {
+  const sig: string[] = [];
+  for (const [domain, fields] of Object.entries(profile.domains))
+    for (const [field, list] of Object.entries(fields))
+      sig.push(`${domain}.${field}:${topTags(list, 6).join(',')}`);
+  return fnv(sig.sort().join('|'));
+}
+
+const NARR_KEY = 'pe.profile.narrative.v1';
+
+/** 一句话口味画像（云脑润色）。fingerprint 命中缓存则直接返回，跳过云脑调用。 */
+export async function summarizeTaste(brain: FrostBrain): Promise<string> {
+  const summary = getProfileSummary({ perField: 6 });
+  if (!summary) return '';
+  const fp = profileFingerprint();
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(NARR_KEY);
+      if (raw) { const c = JSON.parse(raw); if (c && c.fp === fp && typeof c.text === 'string' && c.text) return c.text; }
+    }
+  } catch { /* ignore */ }
+  const prompt = `${summary}\n用一句不超过 40 字的中文，概括这个人的整体口味气质（第二人称「你」，不罗列、不客套）。`;
+  let text = '';
+  try { text = (await brain.complete(prompt)) || ''; } catch { text = ''; }
+  text = text.trim().replace(/^[「"]|["」]$/g, '').trim();
+  if (text) {
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(NARR_KEY, JSON.stringify({ fp, text })); } catch { /* ignore */ }
+  }
+  return text;
 }
