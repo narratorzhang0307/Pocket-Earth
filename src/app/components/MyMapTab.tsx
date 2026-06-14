@@ -107,7 +107,6 @@ const GRID_REF_ZOOM = 14;
 const GRID_BASE_CELL = 48;
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 // 球面两点中心角（度）：地球缩小时用于隐藏转到背面的点
 function centralAngleDeg(a: [number, number], b: [number, number]) {
@@ -422,8 +421,6 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   const detail = clamp01((zoom - DETAIL_START) / (DETAIL_FULL - DETAIL_START));
   // 网格显隐程度（低于 GRID_START 直接为 0 → 消失）
   const gridOpacity = clamp01((zoom - GRID_START) / (GRID_FULL - GRID_START));
-  // 绿点尺寸：远小近大
-  const dotSize = Math.round(lerp(7, 16, clamp01((zoom - 4) / (13.5 - 4))));
 
   // 网格：尺寸随缩放、位置随平移（贴地）
   const cellPx = GRID_BASE_CELL * Math.pow(2, zoom - GRID_REF_ZOOM);
@@ -520,7 +517,6 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
           // 地球缩小时，隐藏转到背面的点
           if (zoom < 5 && centralAngleDeg(mapCenter, [ann.lng, ann.lat]) > 78) return null;
           const showDetail = detail > 0.01;
-          const inner = Math.max(2, Math.round(dotSize * 0.375));
 
           return (
             <div
@@ -537,14 +533,6 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
                   )}
                 </svg>
               )}
-
-              {/* 绿点标记（始终存在；远小近大） */}
-              <div
-                className="absolute -translate-x-1/2 -translate-y-1/2 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88] z-10"
-                style={{ width: `${dotSize}px`, height: `${dotSize}px` }}
-              >
-                <div className="bg-[#00ff88]" style={{ width: `${inner}px`, height: `${inner}px` }}></div>
-              </div>
 
               {/* 照片（含紫色图钉）：仅街道级别出现 */}
               {showDetail && ann.img && ann.imgProps && (
