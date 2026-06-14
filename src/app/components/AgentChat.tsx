@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
-import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { edgeSafe } from '../../../frost-agent/edge/contract';
 import { getProfileSummary } from '../../../frost-agent/harness/profile';
 
 // 通用「对话层」：各 agent（读书 / 观影 / 城市播客）共用的对话框。
@@ -36,7 +36,7 @@ export default function AgentChat({ config }: { config: AgentChatConfig }) {
     // 端侧意图分类（端侧「挑」），失败/空则跳过
     let intent = '';
     if (config.intentLabels?.length) {
-      try { intent = await httpEdge.classify(text, config.intentLabels); } catch { /* 跳过 */ }
+      intent = await edgeSafe.classify(text, config.intentLabels);  // 契约入口：带兜底+健康追踪，失败返回''
     }
 
     // 长期口味画像（跨会话）注入云脑 system —— 只进云端，端侧 classify 不接触
