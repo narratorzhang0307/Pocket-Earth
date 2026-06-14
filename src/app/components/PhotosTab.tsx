@@ -8,7 +8,7 @@ import MagazineBook from './MagazineBook';
 // 数据全部来自解耦的 photos 数据源（换照片只换数据源，这里不动）。
 
 const WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const SEGMENTS = ['时间', '日历', '杂志'] as const;
+const SEGMENTS = ['时间', '杂志', '日历'] as const;
 type Segment = (typeof SEGMENTS)[number];
 type Lightbox = { img: string; caption: string; sub?: string };
 
@@ -17,7 +17,7 @@ const onImgErr = (e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarge
 
 
 export default function PhotosTab() {
-  const [segment, setSegment] = useState<Segment>('日历');
+  const [segment, setSegment] = useState<Segment>('杂志');
   const [lightbox, setLightbox] = useState<Lightbox | null>(null);
   const [openYear, setOpenYear] = useState<number | null>(null);
   const [magMode, setMagMode] = useState<'single' | 'mix'>('single');
@@ -38,7 +38,7 @@ export default function PhotosTab() {
       <div className="px-4 py-4 border-b-2 border-black bg-white shrink-0">
         <h1 className="font-pixel text-xl uppercase tracking-wider mb-2">PHOTOS</h1>
         <p className="text-xs text-black/70 tracking-wide font-medium">
-          按时间 / 日历 / 杂志整理你的照片。<br />
+          按时间 / 杂志 / 日历整理你的照片。<br />
           <span className="opacity-60 text-[9px] font-pixel block mt-1">Your moments, three ways.</span>
         </p>
       </div>
@@ -99,9 +99,9 @@ export default function PhotosTab() {
               </div>
             )}
 
-            {/* —— 日历：月份网格 —— */}
+            {/* —— 日历：月份网格（垂直居中于页面） —— */}
             {segment === '日历' && (
-              <div className="px-4 pt-4 pb-6">
+              <div className="px-4 py-4 min-h-full flex flex-col justify-center">
                 <div className="flex justify-between items-center mb-3">
                   <h2 className="font-pixel text-base tracking-wider">{month.label}</h2>
                   <div className="flex gap-1.5">
