@@ -38,9 +38,51 @@
 
 ---
 
-## 三、Agent 机制（核心）
+## 三、frost-agent 架构全景（核心）
 
-frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智能体**的 Harness。下面用我自己梳理的一套工程语言讲清它的机制。
+frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智能体**的 Harness。下面这张图是它的全貌——一次请求如何流过整套 harness、由两台引擎驱动、全程自带降级：
+
+```
+                          用户一句话 / 一次操作
+                                   │
+                 ┌─────────────────▼─────────────────┐
+                 │  Shell · 人格(persona)             │  对外永远同一个声音
+                 │  + 人声守则(HUMAN_VOICE：说人话)    │
+                 └─────────────────┬─────────────────┘
+                                   │
+                 ┌─────────────────▼─────────────────┐
+                 │         Router · 混合路由           │
+                 │  ① 明确指令      → 正则秒回         │
+                 │  ② 端侧预分类    → 命中秒回 ┄┄┄┄┄┄┄┼┄┄► 端侧 Selector
+                 │  ③ 云脑读意图+抽实体 ┄┄┄┄┄┄┄┄┄┄┄┄┄┼┄┄► 云 Brain
+                 │  ④ 规则兜底                         │
+                 │  〔意图 → 处理器：intentRegistry〕  │
+                 └────┬───────────────────────┬───────┘
+              委派 dispatch               注入 inject
+                  │                           │
+     ┌────────────▼────────────┐  ┌───────────▼───────────┐
+     │  Sub-agents 子 agent     │  │  Memory + Profile      │
+     │  curators · directors    │  │  会话记忆 + 跨会话画像  │
+     │  · COUNCIL 圆桌议事      │  │  (fingerprint 缓存)    │
+     └────────────┬────────────┘  └────────────────────────┘
+         只「建议」动作 / 产出落点
+     ┌────────────▼────────────┐
+     │  Boundary · 校验          │  suggest-then-validate
+     │  〔动作校验注册表〕       │
+     └────────────┬────────────┘
+            合法才落地
+                  ▼
+   地球落点 / 回复(带 trace 思考痕迹) / 动作   ← 出口再过「人声守则」清洗
+
+══ 两台引擎（贯穿全程，model 是成本与隐私的杠杆）══════════════
+  端侧 Selector「挑 / 找」              云 Brain「写」
+   classify · rank · embed · vision      complete()
+   MNN × Qwen(Arm SME2) · 离线隐私       DeepSeek(服务端代理, 密钥不入前端)
+   契约 EdgeModel + edgeSafe(兜底+health)  provider-compat 单入口(加模型=加一文件)
+   三级降级：mnn → ollama → stub          无 key → 规则兜底
+```
+
+它由下面这些部件组成，跑在「端侧 Selector + 云 Brain」两台引擎上。逐部分讲清：
 
 ### 3.1 CEO 委派模型：主智能体 → 子智能体（curator）
 
@@ -58,30 +100,34 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 | 部件 | 文件 | 作用 |
 |---|---|---|
-| **Shell** 人格 | `frost-agent/harness/persona.ts` | 统一对外声音；用户始终面对同一个「人」，而非内部子 agent |
-| **Brain** 云脑 | `harness/brain.ts` · `httpBrain.ts` | 可插拔 `FrostBrain.complete()`；stub 返回空串 → **全链路无 LLM 也能跑**；密钥只在服务端 |
-| **Router** 路由 | `harness/router.ts` · `llmRoute.ts` | 混合路由（见 3.3） |
-| **Memory** 记忆 | `harness/memory.ts` | 会话级记忆（最近若干轮注入提示） |
-| **Boundary** 边界 | `harness/validator.ts` | 子 agent 只**建议**动作，过校验才落地（suggest-then-validate） |
-| **Sub-agents** 子智能体 | `agents/*` | 每个 = 职责契约 + 实现 |
+| **Shell** 人格 | `harness/persona.ts` | 统一对外声音；用户始终面对同一个「人」；内含 `HUMAN_VOICE` 人声守则（全 agent 说人话，见 3.7） |
+| **Brain** 云脑 | `harness/{brain,httpBrain}.ts` · `provider-compat/` | 可插拔 `complete()`；stub 返回空串 → **全链路无 LLM 也能跑**；密钥只在服务端；请求体走 provider-compat 单入口 |
+| **Selector** 端侧 | `edge/{contract,httpEdge}.ts` · `provider-compat/{qwen,mnn}.ts` | 端侧「挑/找」（见 3.4）；契约 `EdgeModel` + `edgeSafe`（带兜底 + health） |
+| **Router** 路由 | `harness/{router,intentRegistry,llmRoute}.ts` | 混合路由 + 意图注册表 + 端侧预分类（见 3.3） |
+| **Memory + Profile** 记忆 | `harness/{memory,profile}.ts` | 会话级记忆 + **跨会话长期口味画像**（fingerprint 缓存，见 3.6） |
+| **Boundary** 边界 | `harness/validator.ts` | 子 agent 只**建议**动作，过校验才落地；动作校验注册表（suggest-then-validate） |
+| **Sub-agents** 子智能体 | `agents/*` · `src/app/council/` | curator / director / 圆桌；每个 = 职责契约 + 实现（五种形态见 3.5） |
+| **Health** 健康 | `harness/health.ts` | 按步骤记成败，让降级**可观测**而非静默 |
 
-整套架构的灵魂是**优雅降级**：云脑不可用 → 规则兜底；端侧未就绪 → 走规则；OSS 不可达 → 回落示例资源。任何一环断了，产品依然能跑。
+整套架构的灵魂是**优雅降级**：云脑不可用 → 规则兜底；端侧未就绪 → stub；端侧后端三级回落 `mnn → ollama → stub`；OSS 不可达 → 回落示例资源。任何一环断了，产品依然能跑。
 
 ### 3.3 Router：混合路由（省钱省延迟 + 接得住没预料的问法）
 
 ```
 用户自然语言
    │
-   ├─① 明确指令？ → switch-handler 正则秒回（不动用大脑）
+   ├─① 明确指令？        → 正则秒回（不动用任何模型）
    │
-   ├─② 否 → 云脑读懂意图 + 抽取实体（LLM intent，泛化长尾）
+   ├─② 端侧能粗分？      → 端侧 classify 命中合法意图 → 秒回（不动云脑，省 token+提速）
    │
-   └─③ 大脑不可用 → 正则兜底
+   ├─③ 否 → 云脑读意图    → LLM 判意图 + 抽实体（泛化长尾）
+   │
+   └─④ 大脑不可用        → 正则兜底
                     │
-                    ▼  委派对应子 agent → Boundary 校验动作 → 返回（带 trace 轨迹）
+                    ▼  委派 → Boundary 校验动作 → 返回（带 trace 轨迹）
 ```
 
-每一步的判断都进入 **trace**（思考轨迹），在 UI 里可见——委派过程天然透明。
+意图 → 处理器走 `intentRegistry` 注册表：**新增一类意图 = 注册一个处理器，内核 dispatch 不改**（动作校验同理走 validator 注册表）。每一步判断都进入 **trace**（思考轨迹），在 UI 里可见——委派过程天然透明。
 
 ### 3.4 端云双脑：端侧「挑和找」，云端「写」
 
@@ -90,12 +136,13 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 | | 端侧 Selector（`/api/edge`） | 云端 Brain（`/api/frost-llm`） |
 |---|---|---|
 | 角色 | **挑 / 找 / 分类 / 排序 / 视觉打标** | **写 / 叙事 / 推荐 / 作答** |
-| 模型 | MNN × Qwen3 / Qwen3-VL（本地，ollama 可跑） | DeepSeek（服务端代理，密钥不入前端） |
-| 接口 | `httpEdge.classify / rank / embed / vision / chat` | `complete()` |
-| 用在哪 | 选歌排序、对话意图分类、照片价值打分与标签、行程喜好排序、主题翻译、截图识别 | DJ 串词、读书 / 观影 / 城市对话作答 |
-| 隐私 | **原图与相册不出端**，只有元数据 / 标签 / 坐标进入知识库 | 只接收已脱敏的结构化输入 |
+| 模型 | MNN × Qwen3.5(文本) / Qwen3-VL(视觉)，Arm SME2 加速、离线；备选 ollama | DeepSeek（服务端代理，密钥不入前端） |
+| 接口 | 契约入口 `edgeSafe.classify / rank / embed / vision / chat`（带兜底 + health） | `complete()` |
+| 用在哪 | 意图预分类、选歌 / 选 POI 排序、照片价值打标、地名识别、截图理解 | 各 curator 对话作答、推荐、串词 |
+| 兼容 / 降级 | `provider-compat/{qwen,mnn}` 集中 quirk；三级回落 `mnn → ollama → stub` | provider-compat 单入口；无 key → 规则兜底 |
+| 隐私 | **原图 / 相册 / 画像不出端**，只有元数据 / 标签 / 坐标进知识库 | 只接收已脱敏的结构化输入 |
 
-端侧未安装时，所有端侧调用安全返回空值，调用方自动走规则兜底（见 `frost-agent/edge/`）。
+端侧未就绪时，`edgeSafe` 安全返回空值并记 health，调用方自动走规则兜底。完整端侧部署（编译 / 转换量化 / sidecar / 调优）见 [`deploy/edge-runtime/`](deploy/edge-runtime/)。
 
 ### 3.5 五种子智能体类型 → 映射到本项目
 
@@ -108,6 +155,19 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 | **并行型** | MapReduce，多专家同时跑 | 流派归类用 12 个子 agent 并行分类 619 位艺人；多 curator 可并行委派 |
 | **只读型** | 安全的观察者（只读不写） | 探查 / 检索类委派（如代码探查用 Explore agent） |
 | **团队型** | 自组织协作 | 总 frost-agent 编排多 curator 协同；**圆桌议事**让一群 agent 同台辩论（见第五节）|
+
+### 3.6 长期画像（Profile）：越用越懂你
+
+`memory.ts` 管「会话内最近几轮」，`profile.ts` 管「跨会话沉淀下来的口味」——两者平行。
+
+- **怎么来**：库存一次性播种（影 / 书 / 乐 / 照聚合成导演 / 作者 / 流派 / 城市等口味标签，幂等）+ 你每记一条增量追加。
+- **成本护盾**：`fingerprint` 缓存——口味没实质变化就不重算、不动云脑（对应「记忆压缩」思路）。
+- **隐私边界**：画像只拼进**云脑** `system`，端侧 classify 一律不接触，**不出端到端侧模型**。
+- **显形**：控制台顶部一句话「你的口味 · ……」，由跨域偏好综合而来。
+
+### 3.7 人声守则（HUMAN_VOICE）：让每个 agent 说人话
+
+`persona.ts` 里一份总纲领，约束**所有**对外说话的 agent（curator 对话 / 圆桌发言 / 口味画像）：不堆破折号、不用星号加粗、不写「不是 X 而是 Y」的对仗反否、不凑排比与空泛溢美、不加客套开场白。**双保险**：提示层写进每个 system，出口层 `cleanVoice` 再程序化清洗（模型没听话也兜得住）。
 
 ---
 

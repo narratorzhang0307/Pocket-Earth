@@ -8,6 +8,9 @@ dist
 *.docx
 *.pdf
 
+# 介绍 / 演示用 PPT，保密不外泄
+*.pptx
+
 # 后端数据底座 / 私有资料库：二进制链接库、城市数据与坐标元数据不入库（私有）
 resource-library/audio.db
 resource-library/cities/
