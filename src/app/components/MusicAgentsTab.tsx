@@ -12,6 +12,8 @@ import PlanetBuilderRunPage from './PlanetBuilderRunPage';
 import CouncilPage from './CouncilPage';
 import MoodRunPage from './MoodRunPage';
 import PublicPlazaPage from './PublicPlazaPage';
+import SkillForgePage from './SkillForgePage';
+import { getLearnedSkills, subscribeSkills, type LearnedSkill } from '../../../frost-agent/harness/skillForge';
 
 interface AgentItem {
   name: string;
@@ -60,15 +62,22 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
       { name: 'public-plaza', role: '委派你的 agent 去公共广场，带画像遇见相似的人，夜里回来报告', status: '可运行' },
     ],
   },
+  {
+    title: 'FORGE',
+    sub: '教 frost 学新技能 · 安全闸',
+    items: [
+      { name: 'skill-forge', role: '一句话描述 → 云脑拟稿 → 安全审查 → 装成快捷技能', status: '可运行' },
+    ],
+  },
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | 'mood' | 'plaza' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | 'mood' | 'plaza' | 'forge' | null;
 const RUN_BY_NAME: Record<string, Running> = {
   'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
   'books-curator': 'books', 'photos-curator': 'photos', 'travel-curator': 'travel',
   'planet-builder': 'planet', 'council-room': 'council', 'mood-curator': 'mood',
-  'public-plaza': 'plaza',
+  'public-plaza': 'plaza', 'skill-forge': 'forge',
 };
 
 export default function MusicAgentsTab() {
@@ -77,6 +86,10 @@ export default function MusicAgentsTab() {
   const [sug, setSug] = useState<Suggestion | null>(() => getSuggestion());
   useEffect(() => subscribeHeartbeat(() => setSug(getSuggestion())), []);
   const adopt = () => { const s = adoptSuggestion(); const t = s?.target ? RUN_BY_NAME[s.target] : null; if (t) setRunning(t); };
+  // P2-I：已学技能（点击=路由到其目标 agent）
+  const [learned, setLearned] = useState<LearnedSkill[]>(getLearnedSkills());
+  useEffect(() => subscribeSkills(() => setLearned([...getLearnedSkills()])), []);
+  const runSkill = (target: string) => { const t = RUN_BY_NAME[target]; if (t) setRunning(t); };
 
   if (running === 'music') return <MusicCuratorPage onBack={() => setRunning(null)} />;
   if (running === 'podcast') return <PodcastCuratorPage onBack={() => setRunning(null)} />;
@@ -88,6 +101,7 @@ export default function MusicAgentsTab() {
   if (running === 'council') return <CouncilPage onBack={() => setRunning(null)} />;
   if (running === 'mood') return <MoodRunPage onBack={() => setRunning(null)} />;
   if (running === 'plaza') return <PublicPlazaPage onBack={() => setRunning(null)} />;
+  if (running === 'forge') return <SkillForgePage onBack={() => setRunning(null)} onRun={runSkill} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">
@@ -170,6 +184,31 @@ export default function MusicAgentsTab() {
             </div>
           </div>
         ))}
+
+        {/* P2-I · frost 学到的快捷技能（点击=路由到目标 agent） */}
+        {learned.length > 0 && (
+          <div>
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="font-pixel text-[11px] tracking-widest">LEARNED</h2>
+              <span className="text-[9px] text-black/45">frost 学到的快捷技能</span>
+            </div>
+            <div className="space-y-2">
+              {learned.map((s) => (
+                <button key={s.id} onClick={() => runSkill(s.target)}
+                  className="w-full text-left flex items-center gap-3 bg-white border-2 border-black p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)] transition-colors hover:bg-[#7c8cff]/10 active:translate-y-px">
+                  <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black" style={{ boxShadow: '1px 1px 0px #7c8cff' }}>
+                    <div className="w-1.5 h-1.5" style={{ background: '#7c8cff' }} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-pixel text-[9px] tracking-wide truncate">{s.name}</div>
+                    <div className="text-[11px] text-black/60 leading-tight mt-0.5 truncate">{s.desc || s.target}</div>
+                  </div>
+                  <span className="shrink-0 font-pixel text-[6px] uppercase tracking-wider border border-black px-1.5 py-1 bg-black text-[#7CFF6B]">▶ 运行</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="text-center text-[8px] font-pixel text-black/30 py-2 tracking-widest">
           端侧管「挑和找」· 云管「写」
