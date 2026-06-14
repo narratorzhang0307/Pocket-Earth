@@ -265,12 +265,12 @@ export function RadioStage({ isOpen, onClose, startCitySlug, startMode = 'music'
               {/* HEADER */}
               <header className="h-12 flex items-center px-3 justify-between gap-2 bg-black z-10 shrink-0 border-b-2 border-[#00ff88]/30">
                 <div className="flex flex-col leading-none shrink-0">
-                  <span className="font-pixel text-[13px] tracking-tighter text-[#00ff88]">FROST · 电台</span>
+                  <span className="font-pixel text-[13px] tracking-tighter text-[#00ff88]">FROST · RADIO</span>
                   <div className="flex items-center gap-1.5 mt-1 font-pixel text-[7px] uppercase tracking-[0.18em]">
-                    <button onClick={() => switchMode('music')} className={mode === 'music' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>音乐</button>
+                    <button onClick={() => switchMode('music')} className={mode === 'music' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>MUSIC</button>
                     {hasPodcast && <>
                       <span className="text-white/20">·</span>
-                      <button onClick={() => switchMode('podcast')} className={mode === 'podcast' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>播客</button>
+                      <button onClick={() => switchMode('podcast')} className={mode === 'podcast' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>PODCAST</button>
                     </>}
                   </div>
                 </div>
@@ -334,7 +334,7 @@ export function RadioStage({ isOpen, onClose, startCitySlug, startMode = 'music'
 
                 {/* 节目面板：恒显「现在播放 xxx」 */}
                 <div className="shrink-0 mx-2 mt-2 px-3 py-1.5 border border-[#00ff88]/20 bg-[#00ff88]/[0.04]">
-                  <div className="font-pixel text-[6px] uppercase tracking-[0.2em] text-[#00ff88]/50 mb-1">FROST 按节目流程为你安排</div>
+                  <div className="font-pixel text-[6px] uppercase tracking-[0.2em] text-[#00ff88]/50 mb-1">FROST · NOW PLAYING</div>
                   <div className="text-[11px] italic text-white/80 leading-snug line-clamp-3">{panelText}</div>
                 </div>
 

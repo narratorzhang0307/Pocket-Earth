@@ -56,7 +56,7 @@ export function RadioPodcastView({ cityNameZh, stationFreq, cover, title, text, 
         <button onClick={onClose} className="absolute top-2.5 right-2.5 w-7 h-7 border border-[#00ff88]/40 flex items-center justify-center text-white/70 hover:text-[#00ff88] hover:bg-[#00ff88]/10 transition-colors" aria-label="back to music"><X size={14} strokeWidth={2.5} /></button>
         <div className="absolute top-3 left-3 flex items-center gap-1.5 font-pixel text-[8px] tracking-[0.3em] uppercase text-[#00ff88]">
           <div className="w-1.5 h-1.5 bg-[#00ff88] animate-pulse" />
-          城市观察员 · LIVE
+          ON AIR · LIVE
         </div>
         <div className="absolute left-3 right-12 bottom-2.5">
           <div className="text-[20px] text-white font-bold leading-tight drop-shadow truncate">{cityNameZh}</div>
