@@ -23,7 +23,7 @@ export default function MoviesCuratorPage({ onBack }: { onBack: () => void }) {
       title="MOVIES-CURATOR"
       sub="观影名录 + 观影对话"
       leftLabel="片库 · 我的观影"
-      rightLabel="对话 · 观影"
+      rightLabel="Frost_Movie"
       left={<MoviesRunPage onBack={onBack} embedded />}
       chat={{
         accent: '#ffb000',

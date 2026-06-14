@@ -14,7 +14,7 @@ export default function BooksCuratorPage({ onBack }: { onBack: () => void }) {
       title="BOOKS-CURATOR"
       sub="书架名录 + 读书对话"
       leftLabel="书架 · 我的书"
-      rightLabel="对话 · 读书"
+      rightLabel="Frost_Book"
       left={<BooksRunPage onBack={onBack} embedded />}
       chat={{
         accent: '#b388ff',
