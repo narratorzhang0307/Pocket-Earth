@@ -4,9 +4,8 @@ import { edgeSafe } from '../../../frost-agent/edge/contract';
 import { getProfileSummary } from '../../../frost-agent/harness/profile';
 import { HUMAN_VOICE, cleanVoice } from '../../../frost-agent/harness/persona';
 import { streamText } from '../../../frost-agent/sync/stream';
-import PixelAvatar from './PixelAvatar';
+import AgentLuIcon from './AgentLuIcon';
 import UserZhaIcon from './UserZhaIcon';
-import type { AvatarSpec } from '../council/agents';
 
 // 通用「对话层」：各 agent（读书 / 观影 / 城市播客）共用的对话框。
 // 端侧先对用户这句话做意图分类（端侧「挑」），云大脑(/api/frost-llm → DeepSeek)结合用户数据作答（云「写」）。
@@ -19,8 +18,6 @@ export interface AgentChatConfig {
   placeholder: string;
   suggestions: string[];
   intentLabels?: string[];    // 端侧意图分类标签（可选）
-  avatar?: AvatarSpec;        // agent 像素头像（取自圆桌对应角色）
-  ring?: string;              // 头像描边色（一般用 accent）
 }
 
 interface Turn { role: 'user' | 'agent'; text: string; intent?: string }
@@ -91,7 +88,7 @@ export default function AgentChat({ config }: { config: AgentChatConfig }) {
           </div>
         ) : (
           <div key={i} className="flex items-start gap-2 max-w-[94%]">
-            {config.avatar && <div className="shrink-0 mt-0.5"><PixelAvatar spec={config.avatar} size={26} ring={config.ring || config.accent} /></div>}
+            <div className="shrink-0 mt-0.5"><AgentLuIcon size={26} /></div>
             <div className="flex flex-col gap-1 min-w-0">
               <div className="font-pixel text-[7px] tracking-[0.2em] flex items-center gap-1.5" style={{ color: config.accent }}>
                 AGENT

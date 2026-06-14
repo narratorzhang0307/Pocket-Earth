@@ -4,9 +4,8 @@ import { runFrost } from '../../../frost-agent/harness/router';
 import type { PlaylistEntry } from '../../../frost-agent/harness/types';
 import { buildDayProgram, type DayProgram } from '../../../frost-agent/agents/radio-24h-director';
 import { RADIO_CITIES, resolveTracksByIds, type ResolvedTrack } from '../../../frost-agent/data/radio';
-import PixelAvatar from './PixelAvatar';
+import AgentLuIcon from './AgentLuIcon';
 import UserZhaIcon from './UserZhaIcon';
-import { agentById } from '../council/agents';
 
 // music-curator 运行页 —— 电台 agent 的对话闭环（像素风）。
 // 用户说话 → runFrost 路由到子 agent（经 DeepSeek 大脑）→ 展示回复 + thinking trace + 歌单。
@@ -152,7 +151,7 @@ export default function MusicAgentRunPage({ onBack, embedded }: Props) {
           </div>
         ) : (
           <div key={i} className="flex items-start gap-2 max-w-[96%]">
-            {agentById('vinyl')?.avatar && <div className="shrink-0 mt-0.5"><PixelAvatar spec={agentById('vinyl')!.avatar} size={26} ring="#00aa55" /></div>}
+            <div className="shrink-0 mt-0.5"><AgentLuIcon size={26} /></div>
             <div className="flex flex-col gap-2 min-w-0 flex-1">
             <div className="font-pixel text-[7px] tracking-[0.2em] text-black/50">FROST</div>
             {turn.text && (
