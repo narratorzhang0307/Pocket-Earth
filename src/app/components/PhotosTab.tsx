@@ -29,9 +29,8 @@ export default function PhotosTab() {
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
       {/* 顶栏状态 */}
-      <div className="flex justify-between items-center px-4 py-2 border-b-2 border-black bg-[#EAEAEA] shrink-0">
-        <div className="font-pixel text-[8px] uppercase">Connection: Secure</div>
-        <div className="font-pixel text-[8px] text-[#00aa55]">SYS.ONLINE</div>
+      <div className="flex justify-center items-center px-4 py-2 border-b-2 border-black bg-[#EAEAEA] shrink-0">
+        <div className="font-pixel text-[8px] uppercase tracking-widest">POCKET EARTH</div>
       </div>
 
       {/* 标题 */}

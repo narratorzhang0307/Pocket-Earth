@@ -458,9 +458,8 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   return (
     <div className="flex flex-col h-full bg-[#EAEAEA] font-sans relative overflow-hidden">
       {/* Top Bar Status */}
-      <div className="flex justify-between items-center px-4 py-2 border-b-2 border-black bg-[#EAEAEA]">
-        <div className="font-pixel text-[8px] uppercase">Connection: Secure</div>
-        <div className="font-pixel text-[8px] text-[#00ff88]">SYS.ONLINE</div>
+      <div className="flex justify-center items-center px-4 py-2 border-b-2 border-black bg-[#EAEAEA]">
+        <div className="font-pixel text-[8px] uppercase tracking-widest">POCKET EARTH</div>
       </div>
 
       {/* Header Area */}
