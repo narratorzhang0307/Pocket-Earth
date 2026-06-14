@@ -1,9 +1,9 @@
 // 地图心情贴 · 数据层（自带经纬度 + 持久化）
 // 用户在赛博浏览地球时随手贴下「此刻的心情」；每条心情贴绑定一个真实经纬度（端侧从文字判地名，
 // 判不出就用当前地图中心），所以地球缩放 / 平移到任意程度，心情贴都钉在原地，不跟屏幕跑。
-// localStorage 发布订阅，刷新不丢。地名识别走端侧 Selector（httpEdge.chat），失败安全降级。
+// localStorage 发布订阅，刷新不丢。地名识别走端侧 Selector 契约入口（edgeSafe.chat），失败安全降级。
 
-import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { edgeSafe } from '../../../frost-agent/edge/contract';
 
 export interface MoodSticker {
   id: string;
@@ -80,7 +80,7 @@ export async function resolveMoodPlace(text: string, fallback: [number, number])
   const direct = matchPlace(text);
   if (direct) return direct;
   try {
-    const name = await httpEdge.chat(text, { system: '从这句话里找出一个地名（城市或国家），只输出地名本身，不要其他字；没有地名就输出 NONE。' });
+    const name = await edgeSafe.chat(text, { system: '从这句话里找出一个地名（城市或国家），只输出地名本身，不要其他字；没有地名就输出 NONE。' });
     const m = matchPlace((name || '').trim());
     if (m) return m;
   } catch { /* 端侧不可用 → 兜底 */ }

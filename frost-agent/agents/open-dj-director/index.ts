@@ -5,7 +5,7 @@ import { AgentResult, FrostContext, PlaylistEntry } from '../../harness/types';
 import { getFrostBrain } from '../../harness/brain';
 import { cleanVoice } from '../../harness/persona';
 import { formatHistory } from '../../harness/memory';
-import { edgeSelector } from '../../edge/httpEdge';
+import { edgeSafe } from '../../edge/contract';
 
 // 全曲目查找表（跨城）
 const TRACK_LOOKUP = new Map(
@@ -43,7 +43,7 @@ function buildTrace(anchor: string, n: number, viaLLM: boolean, edgeUsed: boolea
 // 端侧 Selector：按用户场景给候选曲目排序（端侧「挑」）。端侧不可用 / stub 时返回原候选序。
 async function edgeRankCandidates(text: string): Promise<{ ranked: typeof CANDIDATES; edgeUsed: boolean }> {
   try {
-    const scores = await edgeSelector.rank(text, CANDIDATES.map((c) => `${c.title} — ${c.artist} · ${c.city}`));
+    const scores = await edgeSafe.rank(text, CANDIDATES.map((c) => `${c.title} — ${c.artist} · ${c.city}`));
     if (scores.length === CANDIDATES.length && scores.some((s) => s > 0)) {
       const ranked = CANDIDATES.map((c, i) => ({ c, s: scores[i] })).sort((a, b) => b.s - a.s).map((x) => x.c);
       return { ranked, edgeUsed: true };

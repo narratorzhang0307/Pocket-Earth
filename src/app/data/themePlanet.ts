@@ -2,7 +2,7 @@
 // 解析走「本地词典 → 端侧模型 → 原样」瀑布；落点走「主题纬度带 + 大陆经度锚 + id 确定性散开」，
 // 让每颗星球落得像有意为之、且按主题分布（日落在暖带、极光在高纬），刷新不抖动。
 
-import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { edgeSafe } from '../../../frost-agent/edge/contract';
 import type { PlanetPhoto } from './planets';
 
 export interface ThemeParse { query: string; band: [number, number] }
@@ -36,9 +36,9 @@ const stripDecor = (s: string) => s.replace(/星球|世界|主题|之|的|风光
 export async function parseTheme(themeZh: string): Promise<ThemeParse> {
   const core = stripDecor(themeZh) || themeZh.trim();
   for (const e of THEME_DICT) if (e.match.some((m) => core.includes(m))) return { query: e.query, band: e.band };
-  // 端侧翻译（httpEdge.chat；stub/失败时返回空串，安全降级）
+  // 端侧翻译（edgeSafe.chat；stub/失败时返回空串，安全降级）
   try {
-    const out = await httpEdge.chat(core, {
+    const out = await edgeSafe.chat(core, {
       system: '把中文摄影主题翻译成 2-4 个英文 Unsplash 检索关键词，只输出关键词本身，小写，不要标点和解释。',
     });
     const cleaned = (out || '').toLowerCase().replace(/[^a-z\s]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').slice(0, 4).join(' ');

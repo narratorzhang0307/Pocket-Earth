@@ -32,7 +32,7 @@ export default function TravelRunPage({ onBack }: Props) {
   });
   const showToast = (s: string) => { setToast(s); window.setTimeout(() => setToast(null), 2200); };
 
-  // 端侧规划：edgeSelector.rank 按喜好给 POI 排序（端侧「挑」），失败则本地命中度排序
+  // 端侧规划：edgeSafe.rank 按喜好给 POI 排序（端侧「挑」），失败则本地命中度排序
   const makePlan = async () => {
     setPlanning(true);
     const prefStr = [...prefs].join('、') || '随便逛逛';
