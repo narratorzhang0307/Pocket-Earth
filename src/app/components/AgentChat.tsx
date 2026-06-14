@@ -3,6 +3,7 @@ import { ArrowUp } from 'lucide-react';
 import { edgeSafe } from '../../../frost-agent/edge/contract';
 import { getProfileSummary } from '../../../frost-agent/harness/profile';
 import { HUMAN_VOICE, cleanVoice } from '../../../frost-agent/harness/persona';
+import { streamText } from '../../../frost-agent/sync/stream';
 
 // 通用「对话层」：各 agent（读书 / 观影 / 城市播客）共用的对话框。
 // 端侧先对用户这句话做意图分类（端侧「挑」），云大脑(/api/frost-llm → DeepSeek)结合用户数据作答（云「写」）。
@@ -50,7 +51,18 @@ export default function AgentChat({ config }: { config: AgentChatConfig }) {
       if (r.ok) { const d = await r.json(); reply = cleanVoice(typeof d?.text === 'string' ? d.text : ''); }
     } catch { /* 降级 */ }
     if (!reply) reply = '我这边大脑暂时连不上（需要 DeepSeek key）。不过你的数据都在左边「数据层」里，可以先翻翻。';
-    setTurns((t) => [...t, { role: 'agent', text: reply, intent: intent || undefined }]);
+    // 流式渲染（P2-J）：先放空气泡，再按打字机逐字填充（StreamEvent 节奏；未来接 SSE 真流只换吐字源）
+    setTurns((t) => [...t, { role: 'agent', text: '', intent: intent || undefined }]);
+    let acc = '';
+    await streamText(reply, (e) => {
+      if (e.phase === 'delta' && e.delta) {
+        acc += e.delta;
+        const cur = acc;
+        setTurns((t) => { const n = [...t]; const li = n.length - 1; if (n[li]?.role === 'agent') n[li] = { ...n[li], text: cur }; return n; });
+      } else if (e.phase === 'end') {
+        setTurns((t) => { const n = [...t]; const li = n.length - 1; if (n[li]?.role === 'agent') n[li] = { ...n[li], text: reply }; return n; });
+      }
+    }).done;
     setBusy(false);
   };
 
