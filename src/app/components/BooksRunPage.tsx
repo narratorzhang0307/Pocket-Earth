@@ -3,6 +3,7 @@ import { ChevronLeft, BookOpen, Plus, Camera, Star } from 'lucide-react';
 import { bookRecords, bookTotal, bookMappedTotal, bookCountry, BOOK_PLACES, bookPlace, type BookRecord } from '../data/books';
 import { addUserMark, getUserMarksByKind, subscribeUserMarks, spreadCoord } from '../data/userMarks';
 import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { recordSignals } from '../../../frost-agent/harness/profile';
 import { AnimatePresence } from 'motion/react';
 import MarkerDetail, { type MarkerDetailData } from './MarkerDetail';
 
@@ -82,6 +83,7 @@ export default function BooksRunPage({ onBack, embedded }: Props) {
       const [lng, lat] = spreadCoord(id, p.lng, p.lat, 0.5);
       addUserMark({ id, kind: 'book', lng, lat, label: t,
         meta: { title: t, author: author.trim(), place: p.name, rating, date: new Date().toISOString().slice(0, 10) } });
+      if (author.trim()) recordSignals('books', { authors: [author.trim()] });  // 增量喂长期画像
       showToast(`已钉到地球 · ${p.name}`);
     } else {
       showToast('该地点暂无坐标');

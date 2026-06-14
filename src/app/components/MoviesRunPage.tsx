@@ -3,6 +3,7 @@ import { ChevronLeft, Film, Plus, Camera, Star } from 'lucide-react';
 import { movieRecords, movieTotal, movieMappedTotal, movieCountries, movieCountry, doubanRating, type MovieRecord } from '../data/movies';
 import { addUserMark, getUserMarksByKind, subscribeUserMarks, spreadCoord } from '../data/userMarks';
 import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { recordSignals } from '../../../frost-agent/harness/profile';
 import { AnimatePresence } from 'motion/react';
 import MarkerDetail, { type MarkerDetailData } from './MarkerDetail';
 
@@ -75,6 +76,7 @@ export default function MoviesRunPage({ onBack, embedded }: Props) {
       const [lng, lat] = spreadCoord(id, base[0], base[1]);
       addUserMark({ id, kind: 'movie', lng, lat, label: t,
         meta: { title: t, country, year: year ? Number(year) : null, rating, type: '电影', date: new Date().toISOString().slice(0, 10) } });
+      recordSignals('movies', { countries: [country] });  // 增量喂长期画像
       showToast(`已钉到地球 · ${country}`);
     } else {
       showToast('该国家暂无坐标，未落地球');
