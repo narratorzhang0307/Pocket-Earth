@@ -19,10 +19,13 @@ export default function PhotosTab() {
   const [segment, setSegment] = useState<Segment>('日历');
   const [lightbox, setLightbox] = useState<Lightbox | null>(null);
   const [openYear, setOpenYear] = useState<number | null>(null);
+  const [magMode, setMagMode] = useState<'single' | 'mix'>('single');
   const [monthIdx, setMonthIdx] = useState(0);
   const month = calendarMonths[monthIdx] || { label: '', dim: 30, days: {} };
   const monthDays = Array.from({ length: month.dim }, (_, i) => i + 1);
   const cycleMonth = (d: number) => setMonthIdx((i) => (i + d + calendarMonths.length) % calendarMonths.length);
+  // 混搭模式的照片流：每年取若干张，跨年瀑布混排，点任意一张进入它所属年份
+  const magMix = magazineYears.flatMap((y) => y.photos.slice(0, 4).map((p, i) => ({ id: `${y.year}-${i}`, thumb: p.thumb, year: y.year })));
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
@@ -153,19 +156,56 @@ export default function PhotosTab() {
             {/* —— 杂志：年份相册书 → 翻开看那年照片 —— */}
             {segment === '杂志' && (
               openYear == null ? (
-                <div className="px-4 pt-4 pb-6 flex flex-col gap-3">
-                  {magazineYears.map((y) => (
+                <div className="h-full flex flex-col">
+                  {/* 单页大图 / 瀑布混搭 切换（右上角）*/}
+                  <div className="px-4 py-2 flex justify-between items-center shrink-0 border-b border-black/10">
+                    <span className="font-pixel text-[10px] tracking-widest">MAGAZINE · {magMode === 'single' ? '单页' : '混搭'}</span>
                     <button
-                      key={y.year}
-                      onClick={() => setOpenYear(y.year)}
-                      className="relative h-32 border-2 border-black shadow-[3px_3px_0_#000] overflow-hidden active:translate-y-px text-left bg-[#d8d8d6]"
+                      onClick={() => setMagMode((m) => (m === 'single' ? 'mix' : 'single'))}
+                      title="单页大图 / 瀑布混搭"
+                      className="border-2 border-black px-2 py-1 hover:bg-[#7CFF6B] transition-colors active:translate-y-px"
                     >
-                      <img src={y.cover} onError={onImgErr} className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                      <div className="absolute top-2 left-3 font-pixel text-2xl text-[#7CFF6B] drop-shadow-[2px_2px_0_#000]">{y.year}</div>
-                      <div className="absolute bottom-2 left-3 font-pixel text-[7px] text-white/85 tracking-widest">翻开 ▶</div>
+                      <span className="font-pixel text-[12px] leading-none">{magMode === 'single' ? '▣' : '▦'}</span>
                     </button>
-                  ))}
+                  </div>
+
+                  {magMode === 'single' ? (
+                    /* 单页大图：一年一页，照片撑满整页（无文字，仅角落年份）*/
+                    <div className="flex-1 overflow-y-auto snap-y snap-mandatory px-4 py-3 space-y-4">
+                      {magazineYears.map((y) => (
+                        <button
+                          key={y.year}
+                          onClick={() => setOpenYear(y.year)}
+                          className="snap-center block w-full h-[70vh] min-h-[440px] max-h-[640px] relative border-2 border-black shadow-[6px_6px_0_#000] overflow-hidden bg-[#d8d8d6] active:translate-y-px"
+                        >
+                          <img src={y.photos[0]?.full || y.cover} onError={onImgErr} className="w-full h-full object-cover" />
+                          <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
+                          <div className="absolute bottom-3 left-4 flex items-end gap-2">
+                            <span className="font-pixel text-4xl text-[#7CFF6B] drop-shadow-[2px_2px_0_#000]">{y.year}</span>
+                            <span className="font-pixel text-[8px] text-white/80 mb-1.5">{y.photos.length} 张 ▶</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    /* 瀑布混搭：跨年照片不同高度混排 */
+                    <div className="flex-1 overflow-y-auto px-3 py-3">
+                      <div className="columns-2 gap-2">
+                        {magMix.map((p, i) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setOpenYear(p.year)}
+                            className="break-inside-avoid mb-2 block w-full relative border-2 border-black shadow-[3px_3px_0_#000] overflow-hidden bg-[#d8d8d6] active:translate-y-px"
+                          >
+                            <img src={p.thumb} onError={onImgErr} className="w-full object-cover" style={{ aspectRatio: ['3 / 4', '1 / 1', '4 / 5', '3 / 4', '1 / 1', '4 / 5'][i % 6] }} />
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/65 to-transparent px-2 py-1">
+                              <span className="font-pixel text-[11px] text-[#7CFF6B] drop-shadow-[1px_1px_0_#000]">{p.year}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="px-4 pt-3 pb-6">
