@@ -15,7 +15,7 @@ interface Props {
 
 export default function MapLegend({ visibleKinds, onToggle, planets = [], onTogglePlanet, onRemovePlanet }: Props) {
   return (
-    <div className="absolute bottom-3 left-3 z-20 bg-white/90 backdrop-blur-md border border-black shadow-[1px_1px_0_rgba(0,0,0,0.5)] p-2 pointer-events-auto select-none max-w-[160px]">
+    <div className="absolute bottom-3 left-3 z-20 bg-white/90 backdrop-blur-md border-[1.5px] border-black shadow-[1.5px_1.5px_0_#000] p-2 pointer-events-auto select-none max-w-[160px]">
       <div className="font-pixel text-[7px] tracking-widest mb-1.5 text-black/55">LAYERS · 图层</div>
       <div className="space-y-1">
         {MARKER_KINDS.map((k) => {
@@ -26,8 +26,8 @@ export default function MapLegend({ visibleKinds, onToggle, planets = [], onTogg
               onClick={() => onToggle(k.kind)}
               className={`flex items-center gap-2 w-full transition-opacity active:translate-y-px ${on ? '' : 'opacity-35'}`}
             >
-              {/* 方块（细黑边 + 满彩色，呼应地图上的标记点）*/}
-              <div className="w-3 h-3 shrink-0 border border-black" style={{ background: k.color }} />
+              {/* 方块（粗黑边 + 满彩色，呼应地图上的标记点）*/}
+              <div className="w-3 h-3 shrink-0 border-2 border-black" style={{ background: k.color }} />
               <span className="font-pixel text-[8px] leading-none">{k.label}</span>
               <span className="ml-auto pl-2 font-pixel text-[6px] text-black/40 leading-none">{on ? 'ON' : 'OFF'}</span>
             </button>
@@ -43,7 +43,7 @@ export default function MapLegend({ visibleKinds, onToggle, planets = [], onTogg
             {planets.map((p) => (
               <div key={p.id} className={`flex items-center gap-2 w-full ${p.visible ? '' : 'opacity-35'}`}>
                 <button onClick={() => onTogglePlanet?.(p.id)} className="flex items-center gap-2 min-w-0 flex-1 active:translate-y-px">
-                  <div className="w-3 h-3 shrink-0 rounded-full border border-black" style={{ background: p.color }} />
+                  <div className="w-3 h-3 shrink-0 rounded-full border-[1.5px] border-black" style={{ background: p.color }} />
                   <span className="font-pixel text-[8px] leading-none truncate">{p.name}</span>
                   <span className="ml-auto pl-1 font-pixel text-[6px] text-black/40 leading-none shrink-0">{p.photos.length}</span>
                 </button>
