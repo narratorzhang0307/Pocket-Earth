@@ -8,6 +8,10 @@ import { runSwitchHandler } from '../agents/switch-handler';
 import { runGeneral } from '../agents/general';
 import { getIntentHandler } from './intentRegistry';
 import { llmRoute } from './llmRoute';
+import { httpEdge } from '../edge/httpEdge';
+
+// 端侧可预分类的意图（switch 需抽城，留给正则秒回 / 云脑，不交端侧）
+const EDGE_INTENTS: FrostIntent[] = ['tour', 'open_dj', 'city_culture', 'chitchat', 'general'];
 
 const TOUR = /(日落|跟着.*走|跟随日落|巡游|环游|哪.*在日落|正在日落)/;
 const CULTURE = /(是谁|介绍一下|讲讲|为什么|什么样|历史|文化|背后|这位作家|这座城)/;
@@ -41,20 +45,29 @@ export async function runFrost(ctx: FrostContext): Promise<AgentResult & { inten
     result = fast;
     routeTrace = ['Router → 指令手（规则秒回，未动用大脑）'];
   } else {
-    // ② 大脑路由
-    const lr = await llmRoute(ctx);
-    if (lr) {
-      intent = lr.intent;
-      result = await dispatch(intent, ctx, lr.city);
-      routeTrace = [
-        `Router·大脑 → 意图: ${intent}${lr.city ? ' · ' + lr.city : ''}`,
-        lr.reason ? `判断: ${lr.reason}` : '已读懂用户意图并委派',
-      ];
-    } else {
-      // ③ 大脑不可用 → 规则兜底
-      intent = routeRegex(ctx.userText || '');
+    // ①bis 端侧意图预分类：端侧粗分挡在云路由前，命中合法意图就秒回、不动云脑（省 token + 提速）
+    let edgeIntent = '';
+    try { edgeIntent = await httpEdge.classify(ctx.userText || '', EDGE_INTENTS as string[]); } catch { edgeIntent = ''; }
+    if (edgeIntent && (EDGE_INTENTS as string[]).includes(edgeIntent)) {
+      intent = edgeIntent as FrostIntent;
       result = await dispatch(intent, ctx);
-      routeTrace = [`Router·规则兜底 → 意图: ${intent}（大脑未接入）`];
+      routeTrace = [`Router·端侧预分类 → 意图: ${intent}（端侧挑，未动用云脑）`];
+    } else {
+      // ② 云脑路由（端侧未就绪 / 没把握时的长尾）
+      const lr = await llmRoute(ctx);
+      if (lr) {
+        intent = lr.intent;
+        result = await dispatch(intent, ctx, lr.city);
+        routeTrace = [
+          `Router·大脑 → 意图: ${intent}${lr.city ? ' · ' + lr.city : ''}`,
+          lr.reason ? `判断: ${lr.reason}` : '已读懂用户意图并委派',
+        ];
+      } else {
+        // ③ 大脑不可用 → 规则兜底
+        intent = routeRegex(ctx.userText || '');
+        result = await dispatch(intent, ctx);
+        routeTrace = [`Router·规则兜底 → 意图: ${intent}（大脑未接入）`];
+      }
     }
   }
 
