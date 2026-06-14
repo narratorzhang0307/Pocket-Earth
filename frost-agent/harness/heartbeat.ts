@@ -43,12 +43,12 @@ function topTag(domain: string, field: string): string | null {
 function candidates(): Suggestion[] {
   const out: Suggestion[] = [];
   const mk = (id: string, text: string, target: string, cta: string): Suggestion => ({ id, text, target, cta, createdAt: '' });
-  const dir = topTag('movies', 'directors'); if (dir) out.push(mk('mv-dir', `你常看 ${dir}，去地球上重温你钉过的电影？`, 'movies-curator', '去看看'));
-  const au = topTag('books', 'authors'); if (au) out.push(mk('bk-au', `你偏爱 ${au}，翻翻书架的故事地图？`, 'books-curator', '翻书架'));
-  const ge = topTag('music', 'genres'); if (ge) out.push(mk('mu-ge', `深夜适合 ${ge}，让 frost 给你点一单？`, 'music-curator', '点一单'));
-  if (topTag('photos', 'cities')) out.push(mk('ph-ci', '相册攒了不少，把高价值照片端侧打分、钉上地球？', 'photos-curator', '整理相册'));
-  out.push(mk('planet', '说一个主题，造一颗只属于你的星球？', 'planet-builder', '造星球'));
-  out.push(mk('mood', '此刻在世界某处的心情，记一条钉到地图？', 'mood-curator', '记心情'));
+  const dir = topTag('movies', 'directors'); if (dir) out.push(mk('mv-dir', `重温 ${dir}：看你钉过的电影`, 'movies-curator', '运行'));
+  const au = topTag('books', 'authors'); if (au) out.push(mk('bk-au', `翻 ${au}：看你读过的书`, 'books-curator', '运行'));
+  const ge = topTag('music', 'genres'); if (ge) out.push(mk('mu-ge', `点一单 ${ge}`, 'music-curator', '运行'));
+  if (topTag('photos', 'cities')) out.push(mk('ph-ci', '整理相册，高价值照片钉地球', 'photos-curator', '运行'));
+  out.push(mk('planet', '说个主题，造一颗专属星球', 'planet-builder', '运行'));
+  out.push(mk('mood', '记一条此刻的心情', 'mood-curator', '运行'));
   return out;
 }
 
@@ -68,20 +68,12 @@ export function tick(): void {
   }
 }
 
-/** 采纳当前建议：清掉它并把它返回给调用方去执行（如导航到 target）。 */
+/** 采纳当前建议：清掉它、游标 +1（下次换一条），返回它给调用方去执行（如导航到 target）。 */
 export function adoptSuggestion(): Suggestion | null {
   const s = state.current;
-  state.current = null; persist(); emit();
+  state.current = null; state.cursor += 1; persist(); emit();
+  tick();   // 备好下一条，回到控制台时显示新的
   return s;
-}
-
-/** 忽略当前建议：记入 dismissed、游标 +1，并立刻给下一条。 */
-export function dismissSuggestion(): void {
-  if (state.current && !state.dismissed.includes(state.current.id)) state.dismissed.push(state.current.id);
-  state.cursor += 1;
-  state.current = null;
-  persist(); emit();
-  tick();
 }
 
 let timer: ReturnType<typeof setInterval> | null = null;

@@ -1,7 +1,7 @@
 // 音乐 tab —— frost-agent 架构控制台：展示 v2.0 各 agent（curator / harness / pipeline）
 // 内容静态提炼自 frost-agent/ARCHITECTURE.md 与各 contract.md
 import { useState, useEffect } from 'react';
-import { getSuggestion, subscribeHeartbeat, adoptSuggestion, dismissSuggestion, type Suggestion } from '../../../frost-agent/harness/heartbeat';
+import { getSuggestion, subscribeHeartbeat, adoptSuggestion, type Suggestion } from '../../../frost-agent/harness/heartbeat';
 import MusicCuratorPage from './MusicCuratorPage';
 import PodcastCuratorPage from './PodcastCuratorPage';
 import MoviesCuratorPage from './MoviesCuratorPage';
@@ -125,21 +125,19 @@ export default function MusicAgentsTab() {
         </div>
       </div>
 
-      {/* P2-H · 今日推荐（frost 主动按你的画像建议；采纳才落地） */}
+      {/* P2-H · 今日推荐（frost 主动按你的画像建议；与下面 agent 卡同款，点开即用） */}
       {sug && (
         <div className="px-4 pt-3 shrink-0">
-          <div className="border-2 border-black bg-white p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)]">
-            <div className="font-pixel text-[8px] tracking-widest text-[#00aa55] mb-1">◍ FROST · 今日推荐</div>
-            <div className="text-[12px] text-black/80 leading-snug mb-2">{sug.text}</div>
-            <div className="flex gap-2">
-              <button onClick={adopt} className="flex-1 border-2 border-black bg-black text-[#7CFF6B] font-pixel text-[8px] uppercase tracking-wider py-1.5 active:translate-y-px">
-                {sug.cta || '采纳'}
-              </button>
-              <button onClick={() => dismissSuggestion()} className="flex-1 border-2 border-black bg-white text-black font-pixel text-[8px] uppercase tracking-wider py-1.5 active:translate-y-px">
-                忽略
-              </button>
+          <button onClick={adopt} className="w-full text-left flex items-center gap-3 bg-white border-2 border-black p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)] transition-colors hover:bg-[#00ff88]/10 active:translate-y-px">
+            <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88]">
+              <div className="w-1.5 h-1.5 bg-[#00ff88]" />
             </div>
-          </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-pixel text-[9px] tracking-wide text-[#00aa55]">今日推荐</div>
+              <div className="text-[11px] text-black/70 leading-tight mt-0.5 truncate">{sug.text}</div>
+            </div>
+            <span className="shrink-0 font-pixel text-[6px] uppercase tracking-wider border border-black px-1.5 py-1 bg-black text-[#7CFF6B]">▶ 运行</span>
+          </button>
         </div>
       )}
 
