@@ -308,16 +308,23 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   // 位置覆盖变化（拖动校对落点）→ 重渲染：DOM 照片即时重投影；底层方块/圆点在松手时由 refreshMapSources 刷新
   useEffect(() => subscribeOverrides(() => tick()), []);
 
-  // 点击标记 → 弹出详情；悬停变手型
+  // 点击标记 → 弹出详情；悬停变手型；按下拖动 → 校正落点（音乐/书/电影/行程方块 + 星球圆点）
   useEffect(() => {
     if (!map) return;
+    // 拖动过则吞掉随后那次 click（避免误开详情）；每次 mousedown 重置，纯点击不受影响
+    let suppressMark = false;
+    let suppressPlanet = false;
+    let dragging = false; // 拖动中：抑制 enter/leave 改光标
+
     const onClick = (e: mapboxgl.MapLayerMouseEvent) => {
+      if (suppressMark) { suppressMark = false; return; }
       const f = e.features && e.features[0];
       if (!f || !f.properties) return;
       const d = resolveDetail(String(f.properties.id), f.properties.kind as MarkerKind, String(f.properties.label || ''));
       if (d) setSelected(d);
     };
     const onPlanetClick = (e: mapboxgl.MapLayerMouseEvent) => {
+      if (suppressPlanet) { suppressPlanet = false; return; }
       const f = e.features && e.features[0];
       if (!f || !f.properties) return;
       const ph = planetPhotoById(String(f.properties.id));
@@ -325,16 +332,74 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
       setSelected({ kind: 'photo', full: ph.full, thumb: ph.thumb, city: ph.alt || '照片', authorName: ph.author, authorLink: ph.authorUrl, photoLink: ph.link });
       trackDownload(ph.downloadLocation); // 看大图触发 Unsplash 合规埋点
     };
-    const enter = () => { map.getCanvas().style.cursor = 'pointer'; };
-    const leave = () => { map.getCanvas().style.cursor = ''; };
+    const enter = () => { if (!dragging) map.getCanvas().style.cursor = 'pointer'; };
+    const leave = () => { if (!dragging) map.getCanvas().style.cursor = ''; };
+
+    // mapbox 原生特征拖动工厂：按下捕获要素 id → 拖动更新覆盖并 rAF 刷新源 → 松手落盘
+    const writeSource = (sourceId: string, buildData: () => unknown) => {
+      const s = map.getSource(sourceId) as mapboxgl.GeoJSONSource | undefined;
+      if (s) s.setData(buildData() as never);
+    };
+    const makeDrag = (sourceId: string, buildData: () => unknown, onDownReset: () => void, onMovedSet: () => void) => {
+      let id: string | null = null;
+      let moved = false;
+      let raf = 0;
+      let ll: mapboxgl.LngLat | null = null;
+      const apply = () => {
+        raf = 0;
+        if (!id || !ll) return;
+        setOverride(id, ll.lng, ll.lat);
+        writeSource(sourceId, buildData);
+      };
+      const move = (e: mapboxgl.MapMouseEvent) => {
+        if (!id) return;
+        moved = true;
+        ll = e.lngLat;
+        if (!raf) raf = requestAnimationFrame(apply); // rAF 节流，避免每帧重建大量要素
+      };
+      // 松手挂在 window：拖到 DOM 叠层 / 窗口外松手也能收尾（否则点会「黏」在光标上、监听泄漏）
+      const up = () => {
+        map.off('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        dragging = false;
+        map.getCanvas().style.cursor = '';
+        if (id && moved && ll) {          // 冲刷最后一帧，确保松手处落点写入并落盘（修 rAF 丢帧）
+          setOverride(id, ll.lng, ll.lat);
+          writeSource(sourceId, buildData);
+          commitOverrides();
+          onMovedSet();
+        }
+        id = null; ll = null;
+      };
+      const down = (e: mapboxgl.MapLayerMouseEvent) => {
+        const f = e.features && e.features[0];
+        if (!f || !f.properties) return;
+        e.preventDefault(); // 阻止地图平移，改为拖动这个点
+        onDownReset();
+        id = String(f.properties.id);
+        moved = false;
+        ll = null;
+        dragging = true;
+        map.getCanvas().style.cursor = 'grabbing';
+        map.on('mousemove', move);
+        window.addEventListener('mouseup', up, { once: true });
+      };
+      return down;
+    };
+    const onMarkDown = makeDrag('marks', buildMarksData, () => { suppressMark = false; }, () => { suppressMark = true; });
+    const onPlanetDown = makeDrag('planets', planetsToGeoJSON, () => { suppressPlanet = false; }, () => { suppressPlanet = true; });
+
     const bind = () => {
       if (map.getLayer('mark-layer')) {
         map.on('click', 'mark-layer', onClick);
+        map.on('mousedown', 'mark-layer', onMarkDown);
         map.on('mouseenter', 'mark-layer', enter);
         map.on('mouseleave', 'mark-layer', leave);
       }
       if (map.getLayer('planet-layer')) {
         map.on('click', 'planet-layer', onPlanetClick);
+        map.on('mousedown', 'planet-layer', onPlanetDown);
         map.on('mouseenter', 'planet-layer', enter);
         map.on('mouseleave', 'planet-layer', leave);
       }
@@ -343,9 +408,11 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
     else map.once('idle', bind);
     return () => {
       map.off('click', 'mark-layer', onClick);
+      map.off('mousedown', 'mark-layer', onMarkDown);
       map.off('mouseenter', 'mark-layer', enter);
       map.off('mouseleave', 'mark-layer', leave);
       map.off('click', 'planet-layer', onPlanetClick);
+      map.off('mousedown', 'planet-layer', onPlanetDown);
       map.off('mouseenter', 'planet-layer', enter);
       map.off('mouseleave', 'planet-layer', leave);
     };
