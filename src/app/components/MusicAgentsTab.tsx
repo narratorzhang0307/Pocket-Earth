@@ -26,7 +26,6 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
     sub: '子 agent',
     items: [
       { name: 'music-curator', role: '把音乐钉到歌手出身地 / 歌曲城市', status: '契约就位' },
-      { name: 'podcast-curator', role: '城市播客：每座城一段深度文化叙事', status: '可运行' },
       { name: 'books-curator', role: '把书钉到故事地 / 作者地 + 读完日期', status: '契约就位' },
       { name: 'movies-curator', role: '把电影钉到取景地 / 故事地', status: '契约就位' },
       { name: 'photos-curator', role: '端侧整理相册，高价值照片钉地球', status: '契约就位' },
@@ -46,6 +45,13 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
     sub: '多 agent 同台 · 你来组局',
     items: [
       { name: 'council-room', role: '圆桌 / 辩论 / 法庭：多个 agent 讨论、出谋划策', status: '可运行' },
+    ],
+  },
+  {
+    title: 'RADIO',
+    sub: '电台 · 城市播客',
+    items: [
+      { name: 'podcast-curator', role: '城市播客：每座城一段深度文化叙事', status: '可运行' },
     ],
   },
 ];

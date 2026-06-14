@@ -105,12 +105,7 @@ export default function PodcastRunPage({ onBack, embedded }: Props) {
                   <div className="text-[10px] text-black/45 truncate">{p.seg.title} · {p.seg.subtitle}</div>
                 </div>
               </button>
-              {/* 展开文稿 */}
-              {active && (
-                <div className="px-3 pb-3 pt-1 border-t border-black/10">
-                  <div className="text-[12px] leading-relaxed whitespace-pre-wrap text-black/80 max-h-[300px] overflow-y-auto">{p.seg.text}</div>
-                </div>
-              )}
+              {/* 稿子不整篇透露：仅在播客模式里随音频逐字浮现（见后续电台播放器） */}
             </div>
           );
         })}
