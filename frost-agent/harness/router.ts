@@ -4,12 +4,9 @@
 // ③ 大脑不可用时回退规则路由。子 agent 只建议动作 → Validator 校验 → 返回。
 import { AgentResult, FrostContext, FrostIntent } from './types';
 import { validateActions } from './validator';
-import { runSwitchHandler, switchToCity } from '../agents/switch-handler';
-import { runTourDirector } from '../agents/tour-director';
-import { runChitchat } from '../agents/chitchat';
-import { runOpenDjDirector } from '../agents/open-dj-director';
-import { runDeepAnswer } from '../agents/deep-answer';
+import { runSwitchHandler } from '../agents/switch-handler';
 import { runGeneral } from '../agents/general';
+import { getIntentHandler } from './intentRegistry';
 import { llmRoute } from './llmRoute';
 
 const TOUR = /(日落|跟着.*走|跟随日落|巡游|环游|哪.*在日落|正在日落)/;
@@ -24,21 +21,11 @@ function routeRegex(t: string): FrostIntent {
   return 'general';
 }
 
-/** 按意图委派到子 agent；city 为 LLM 抽到的城市（switch 用）。 */
+/** 按意图委派：走意图注册表查处理器；未注册的意图回退 general。city 为 LLM 抽到的城市（switch 用）。 */
 async function dispatch(intent: FrostIntent, ctx: FrostContext, city?: string): Promise<AgentResult> {
-  switch (intent) {
-    case 'switch': {
-      const byCity = city ? switchToCity(city) : null;
-      if (byCity) return byCity;
-      const sw = runSwitchHandler(ctx);       // 没抽到城/抽错 → 再试一次正则（可能是 next/pause）
-      return sw.data.matched ? sw : runGeneral(ctx);
-    }
-    case 'tour': return runTourDirector(ctx.now);
-    case 'open_dj': return runOpenDjDirector(ctx);
-    case 'city_culture': return runDeepAnswer(ctx);
-    case 'chitchat': return runChitchat(ctx);
-    default: return runGeneral(ctx);
-  }
+  const handler = getIntentHandler(intent);
+  if (handler) return handler(ctx, { city });
+  return runGeneral(ctx);
 }
 
 /** Frost 总入口：① 指令秒回 → ② 大脑路由 → ③ 规则兜底；委派 → 校验动作 → 返回。 */
