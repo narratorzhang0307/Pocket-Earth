@@ -4,6 +4,8 @@
 >
 > 内核是 **frost-agent**——一套「把地球作为方法」的多智能体编排框架（Harness），是我自己对 agent harness 工程的一套实践与思考。
 
+**🌍 在线体验：https://pocket-earth.throughtheglass.art** （手机浏览器打开最贴合，可装为 PWA；安装与本地运行见[第九节](#九安装与运行)）
+
 ---
 
 ## 一、它是什么
@@ -344,21 +346,53 @@ resource-library/   # 私有资料库（城市 / 照片 / 音频，gitignore 不
 
 ---
 
-## 九、运行
+## 九、安装与运行
+
+**环境要求**：Node ≥ 18（推荐 20）。技术栈 React + Vite + TypeScript + Tailwind v4 + mapbox-gl。
+
+### 1. 本地开发
 
 ```bash
 npm install
 
-# 配置密钥（均可选；不配则自动降级到规则 / 兜底资源）
+# 配置密钥（均可选；不配则自动降级到规则 / 兜底资源，UI 照常工作）
 cp .env.example .env
-#   VITE_MAPBOX_TOKEN     地球底图
-#   DEEPSEEK_API_KEY      云端 Brain（对话 / 串词）
-#   UNSPLASH_ACCESS_KEY   星球抓图
+#   VITE_MAPBOX_TOKEN   地球底图（公开型 token，构建期注入；不配则地图不显示）
+#   DEEPSEEK_API_KEY    云端 Brain（对话 / 串词；不配则各 agent 走规则 fallback）
+#   EDGE_BACKEND/MNN_URL/OLLAMA_URL … 端侧后端（见下方第 2 步与 .env.example 注释）
 
-npm run dev
+npm run dev          # 默认 http://localhost:5173
 ```
 
-可选：本地装 [ollama](https://ollama.com) 并拉取 `qwen3:0.6b` / `qwen2.5vl:3b`，端侧 Selector 即真跑（否则走 stub 兜底）。
+> 密钥只在服务端读（dev 中间件 / 生产服务），**永不进前端 bundle**。完整可配项见 `.env.example` 的逐行注释。
+
+### 2. 端侧 Selector（可选，本机 / 真机）
+
+端侧负责「挑 / 找」（分类 / 排序 / 嵌入 / 视觉打标），不配则走 stub 兜底（见 §3.4 端云双脑）。
+
+- **最轻**：装 [ollama](https://ollama.com) 拉取 `qwen3:0.6b` / `qwen2.5vl:3b`，设 `EDGE_BACKEND=ollama`。
+- **MNN × Qwen**：见 `deploy/edge-runtime/`（编译 / 取模型 / 转换量化 / sidecar / 调优）；起好 sidecar 后设 `MNN_URL` 即切端侧、前端零改动（端侧看图打分见 §3.9）。
+
+### 3. 构建与生产部署
+
+```bash
+npm run build        # 产物在 dist/
+```
+
+生产用零依赖的 `server.mjs`（静态托管 `dist` + `/api/frost-llm`·`/api/edge`·`/api/unsplash` 三个端点），前面挂 nginx 反代、certbot 出证书。一键发布：
+
+```bash
+PEM=/path/to/key.pem REMOTE=root@<服务器IP> ./deploy/online/deploy.sh
+# 本机构建 → 推 dist + server.mjs → 进程热重启；不动服务器上其它应用
+```
+
+反代 / 证书 / 进程管理 / 服务端 `.env` 详见 [`deploy/online/README.md`](deploy/online/README.md)。
+
+### 4. 在线体验
+
+本项目已部署上线：**https://pocket-earth.throughtheglass.art**
+
+HTTP 自动跳 HTTPS、证书自动续期；手机浏览器打开最贴合（430×932 手机框），可「添加到主屏幕」当 PWA 用。云脑（DeepSeek）实跑；端侧本就跑在真机 / 本机，线上 Web demo 走优雅降级。
 
 ---
 
