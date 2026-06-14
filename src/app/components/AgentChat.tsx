@@ -4,6 +4,9 @@ import { edgeSafe } from '../../../frost-agent/edge/contract';
 import { getProfileSummary } from '../../../frost-agent/harness/profile';
 import { HUMAN_VOICE, cleanVoice } from '../../../frost-agent/harness/persona';
 import { streamText } from '../../../frost-agent/sync/stream';
+import PixelAvatar from './PixelAvatar';
+import UserZhaIcon from './UserZhaIcon';
+import type { AvatarSpec } from '../council/agents';
 
 // 通用「对话层」：各 agent（读书 / 观影 / 城市播客）共用的对话框。
 // 端侧先对用户这句话做意图分类（端侧「挑」），云大脑(/api/frost-llm → DeepSeek)结合用户数据作答（云「写」）。
@@ -16,6 +19,8 @@ export interface AgentChatConfig {
   placeholder: string;
   suggestions: string[];
   intentLabels?: string[];    // 端侧意图分类标签（可选）
+  avatar?: AvatarSpec;        // agent 像素头像（取自圆桌对应角色）
+  ring?: string;              // 头像描边色（一般用 accent）
 }
 
 interface Turn { role: 'user' | 'agent'; text: string; intent?: string }
@@ -80,16 +85,20 @@ export default function AgentChat({ config }: { config: AgentChatConfig }) {
           </div>
         )}
         {turns.map((t, i) => t.role === 'user' ? (
-          <div key={i} className="self-end max-w-[82%]">
+          <div key={i} className="self-end flex flex-row-reverse items-start gap-2 max-w-[88%]">
+            <div className="shrink-0 mt-0.5"><UserZhaIcon size={26} ring="#111" /></div>
             <div className="text-white border-2 border-black px-3 py-2 text-[12px] leading-relaxed shadow-[2px_2px_0_rgba(0,0,0,0.85)]" style={{ background: '#111' }}>{t.text}</div>
           </div>
         ) : (
-          <div key={i} className="flex flex-col gap-1 max-w-[92%]">
-            <div className="font-pixel text-[7px] tracking-[0.2em] flex items-center gap-1.5" style={{ color: config.accent }}>
-              AGENT
-              {t.intent && <span className="text-black/45 not-italic" style={{ color: config.accent }}>· 端侧识别意图：{t.intent}</span>}
+          <div key={i} className="flex items-start gap-2 max-w-[94%]">
+            {config.avatar && <div className="shrink-0 mt-0.5"><PixelAvatar spec={config.avatar} size={26} ring={config.ring || config.accent} /></div>}
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="font-pixel text-[7px] tracking-[0.2em] flex items-center gap-1.5" style={{ color: config.accent }}>
+                AGENT
+                {t.intent && <span className="not-italic" style={{ color: config.accent }}>· 端侧识别意图：{t.intent}</span>}
+              </div>
+              <div className="bg-white border-2 border-black px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{t.text}</div>
             </div>
-            <div className="bg-white border-2 border-black px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{t.text}</div>
           </div>
         ))}
         {busy && <div className="font-pixel text-[8px] text-black/45 tracking-widest animate-pulse">⋯ 端侧识别 + 云端作答 ⋯</div>}

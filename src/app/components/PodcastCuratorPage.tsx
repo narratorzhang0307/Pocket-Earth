@@ -1,6 +1,7 @@
 import CuratorTabsPage from './CuratorTabsPage';
 import PodcastRunPage from './PodcastRunPage';
 import { RADIO_CITIES } from '../../../frost-agent/data/radio';
+import { agentById } from '../council/agents';
 
 // 城市播客 curator：左「城市·播客」(各城播客 + 播放) + 右「对话·城市」(城市文化 agent)。
 
@@ -22,6 +23,7 @@ export default function PodcastCuratorPage({ onBack }: { onBack: () => void }) {
         placeholder: '想了解哪座城市…',
         suggestions: ['讲讲东京的夜晚', '哪些城市有播客？', '推荐一座适合深夜的城市'],
         intentLabels: ['讲城市', '找播客', '推荐', '其他'],
+        avatar: agentById('nomad')?.avatar,
       }}
     />
   );

@@ -2,6 +2,7 @@ import CuratorTabsPage from './CuratorTabsPage';
 import BooksRunPage from './BooksRunPage';
 import { SEED_BOOKS } from '../data/books';
 import { getUserMarksByKind } from '../data/userMarks';
+import { agentById } from '../council/agents';
 
 // 读书 curator：左「书架·我的书」(藏书票名录) + 右「对话·读书」(基于你读过的书的读书 agent)。
 
@@ -25,6 +26,7 @@ export default function BooksCuratorPage({ onBack }: { onBack: () => void }) {
         placeholder: '聊聊书 / 想读什么…',
         suggestions: ['根据我读过的书推荐三本', '我读过的书里哪些讲孤独？', '推荐适合雨夜读的书'],
         intentLabels: ['推荐', '讨论', '找书', '其他'],
+        avatar: agentById('bookworm')?.avatar,
       }}
     />
   );

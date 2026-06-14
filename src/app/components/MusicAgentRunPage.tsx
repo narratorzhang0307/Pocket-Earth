@@ -4,6 +4,9 @@ import { runFrost } from '../../../frost-agent/harness/router';
 import type { PlaylistEntry } from '../../../frost-agent/harness/types';
 import { buildDayProgram, type DayProgram } from '../../../frost-agent/agents/radio-24h-director';
 import { RADIO_CITIES, resolveTracksByIds, type ResolvedTrack } from '../../../frost-agent/data/radio';
+import PixelAvatar from './PixelAvatar';
+import UserZhaIcon from './UserZhaIcon';
+import { agentById } from '../council/agents';
 
 // music-curator 运行页 —— 电台 agent 的对话闭环（像素风）。
 // 用户说话 → runFrost 路由到子 agent（经 DeepSeek 大脑）→ 展示回复 + thinking trace + 歌单。
@@ -143,11 +146,14 @@ export default function MusicAgentRunPage({ onBack, embedded }: Props) {
         )}
 
         {turns.map((turn, i) => turn.role === 'user' ? (
-          <div key={i} className="self-end max-w-[82%]">
+          <div key={i} className="self-end flex flex-row-reverse items-start gap-2 max-w-[88%]">
+            <div className="shrink-0 mt-0.5"><UserZhaIcon size={26} ring="#111" /></div>
             <div className="bg-black text-[#7CFF6B] border-2 border-black px-3 py-2 text-[12px] leading-relaxed shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{turn.text}</div>
           </div>
         ) : (
-          <div key={i} className="flex flex-col gap-2 max-w-[92%]">
+          <div key={i} className="flex items-start gap-2 max-w-[96%]">
+            {agentById('vinyl')?.avatar && <div className="shrink-0 mt-0.5"><PixelAvatar spec={agentById('vinyl')!.avatar} size={26} ring="#00aa55" /></div>}
+            <div className="flex flex-col gap-2 min-w-0 flex-1">
             <div className="font-pixel text-[7px] tracking-[0.2em] text-black/50">FROST</div>
             {turn.text && (
               <div className="bg-white border-2 border-black px-3 py-2 text-[12px] leading-relaxed whitespace-pre-wrap shadow-[2px_2px_0_rgba(0,0,0,0.85)]">{turn.text}</div>
@@ -235,6 +241,7 @@ export default function MusicAgentRunPage({ onBack, embedded }: Props) {
                 </div>
               </div>
             )}
+            </div>
           </div>
         ))}
 
