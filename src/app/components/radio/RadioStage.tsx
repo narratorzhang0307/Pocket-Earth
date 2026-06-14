@@ -92,8 +92,12 @@ export function RadioStage({ isOpen, onClose, startCitySlug, startMode = 'music'
 
   // 打开 / 切城市 → 重置对话为开场白
   useEffect(() => {
-    if (isOpen && city) { setChat([{ role: 'dj', text: frostOpening(new Date(), city), auto: true }]); lastIntroIdRef.current = null; lastSegIdRef.current = null; }
-  }, [isOpen, cityIndex]);
+    if (!isOpen || !city) return;
+    lastIntroIdRef.current = null;
+    lastSegIdRef.current = null;
+    // 播客：字幕直接用稿子，不放音乐电台开场白（避免与稿子叠成两条 FROST）
+    setChat(mode === 'podcast' ? [] : [{ role: 'dj', text: frostOpening(new Date(), city), auto: true }]);
+  }, [isOpen, cityIndex, mode]);
 
   // 换歌（音乐模式）→ 把这首歌的解说稿追加到对话（打字机自走）
   useEffect(() => {
@@ -294,27 +298,27 @@ export function RadioStage({ isOpen, onClose, startCitySlug, startMode = 'music'
               <div className="absolute inset-0 pointer-events-none z-0 opacity-[0.04]" style={{ background: 'repeating-linear-gradient(0deg, #000, #000 1px, transparent 1px, transparent 2px)' }} />
 
               {/* HEADER */}
-              <header className="h-12 flex items-center px-3 justify-between gap-2 bg-black z-10 shrink-0 border-b-2 border-[#00ff88]/30">
-                <div className="flex flex-col leading-none shrink-0">
-                  <span className="font-pixel text-[13px] tracking-tighter text-[#00ff88]">FROST · RADIO</span>
-                  <div className="flex items-center gap-1.5 mt-1 font-pixel text-[7px] uppercase tracking-[0.18em]">
-                    <button onClick={() => switchMode('music')} className={mode === 'music' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>MUSIC</button>
-                    {hasPodcast && <>
-                      <span className="text-white/20">·</span>
-                      <button onClick={() => switchMode('podcast')} className={mode === 'podcast' ? 'text-[#00ff88]' : 'text-white/45 hover:text-[#00ff88] transition-colors'}>PODCAST</button>
-                    </>}
-                  </div>
+              <header className="h-10 flex items-center px-3 gap-2.5 bg-black z-10 shrink-0 border-b border-[#00ff88]/20">
+                {/* 品牌（小） */}
+                <span className="font-pixel text-[8px] tracking-[0.15em] text-[#00ff88]/80 shrink-0">FROST·RADIO</span>
+                {/* 形态切换：紧凑分段开关 */}
+                <div className="flex shrink-0 border border-[#00ff88]/30">
+                  <button onClick={() => switchMode('music')} className={`px-2 py-[3px] font-pixel text-[6px] tracking-[0.15em] transition-colors ${mode === 'music' ? 'bg-[#00ff88] text-black' : 'text-white/45 hover:text-[#00ff88]'}`}>MUSIC</button>
+                  {hasPodcast && (
+                    <button onClick={() => switchMode('podcast')} className={`px-2 py-[3px] font-pixel text-[6px] tracking-[0.15em] border-l border-[#00ff88]/30 transition-colors ${mode === 'podcast' ? 'bg-[#00ff88] text-black' : 'text-white/45 hover:text-[#00ff88]'}`}>PODCAST</button>
+                  )}
                 </div>
-                <span className="font-pixel text-[8px] tracking-widest text-red-500 animate-pulse shrink-0">● LIVE</span>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex flex-col items-end leading-none whitespace-nowrap">
-                    <span className="text-[11px] font-bold text-[#00ff88]">{curCityZh}</span>
-                    <span className="text-[#00ff88] font-bold text-[11px] mt-0.5 tabular-nums">{localTime}</span>
-                  </div>
-                  <div className="flex flex-col items-center justify-center gap-px">
-                    <button onClick={onClose} title="关闭" aria-label="close radio" className="w-[16px] h-[16px] flex items-center justify-center text-white/55 hover:text-[#00ff88] hover:bg-[#00ff88]/15 active:scale-90 transition-all"><X size={11} strokeWidth={2.5} /></button>
-                    <button onClick={() => setMinimized(true)} title="最小化（后台继续播放）" aria-label="minimize" className="w-[16px] h-[16px] flex items-center justify-center text-white/55 hover:text-[#00ff88] hover:bg-[#00ff88]/15 active:scale-90 transition-all"><Minus size={11} strokeWidth={2.5} /></button>
-                  </div>
+                <span className="font-pixel text-[6px] tracking-widest text-red-500 animate-pulse shrink-0">● LIVE</span>
+                <div className="flex-1" />
+                {/* 城市 · 时间 */}
+                <div className="flex flex-col items-end leading-none whitespace-nowrap shrink-0">
+                  <span className="text-[10px] font-bold text-[#00ff88]">{curCityZh}</span>
+                  <span className="text-[#00ff88]/80 font-bold text-[9px] mt-px tabular-nums">{localTime}</span>
+                </div>
+                {/* 关闭 / 最小化 */}
+                <div className="flex flex-col items-center justify-center gap-px shrink-0">
+                  <button onClick={onClose} title="关闭" aria-label="close radio" className="w-4 h-4 flex items-center justify-center text-white/45 hover:text-[#00ff88] active:scale-90 transition-all"><X size={11} strokeWidth={2.5} /></button>
+                  <button onClick={() => setMinimized(true)} title="最小化（后台继续播放）" aria-label="minimize" className="w-4 h-4 flex items-center justify-center text-white/45 hover:text-[#00ff88] active:scale-90 transition-all"><Minus size={11} strokeWidth={2.5} /></button>
                 </div>
               </header>
 
