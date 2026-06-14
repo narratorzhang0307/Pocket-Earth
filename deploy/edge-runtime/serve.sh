@@ -5,7 +5,8 @@ set -euo pipefail
 
 MODELS_DIR="${MODELS_DIR:-$HOME/mnn-models}"
 export MNN_TEXT_CONFIG="${MNN_TEXT_CONFIG:-$MODELS_DIR/Qwen3.5-0.8B-MNN/config.json}"
-export MNN_VISION_CONFIG="${MNN_VISION_CONFIG:-$MODELS_DIR/Qwen3-VL-2B-Instruct-MNN/config.json}"
+# 视觉默认复用文本那份多模态模型(Qwen3.5-0.8B-MNN 自带 visual.mnn)；要更强可下 Qwen3-VL-2B 后覆盖此项
+export MNN_VISION_CONFIG="${MNN_VISION_CONFIG:-$MNN_TEXT_CONFIG}"
 export MNN_PORT="${MNN_PORT:-8000}"
 export MNN_THREAD_NUM="${MNN_THREAD_NUM:-4}"   # 绑大核数量
 export MNN_PRECISION="${MNN_PRECISION:-low}"   # low 换速度

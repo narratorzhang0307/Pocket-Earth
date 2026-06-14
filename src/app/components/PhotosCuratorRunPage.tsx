@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, Image as ImageIcon, Trash2, Download, MapPin } from 'lucide-react';
 import { curated, dupGroups, curationStats, VERDICT_LABEL, VERDICT_COLOR, type CuratedPhoto } from '../data/photoCuration';
+import { edgeSafe } from '../../../frost-agent/edge/contract';
 
 // photos-curator 运行页 —— 端侧照片整理 agent（Keep One 思路）。
 // 端侧模型持续扫描相册 → 打分 / 打标签(城市·类别·经纬度) / 判定保留-待定-可删 → 输出整理报告；
@@ -21,6 +22,9 @@ export default function PhotosCuratorRunPage({ onBack }: Props) {
   const [segment, setSegment] = useState<Segment>('整理报告');
   const [scanned, setScanned] = useState(0);
   const [cleaned, setCleaned] = useState<Set<string>>(loadCleaned);
+  // 端侧看图打分：调端侧视觉模型(MNN×Qwen-VL)真看图、给收藏价值打分（端侧未就绪则安全降级）
+  const [edgeScored, setEdgeScored] = useState<Record<string, { score?: number; reason: string; busy?: boolean }>>({});
+  const [edgeRunning, setEdgeRunning] = useState(false);
 
   const total = curationStats.total;
   const done = scanned >= total;
@@ -45,6 +49,25 @@ export default function PhotosCuratorRunPage({ onBack }: Props) {
     const next = new Set(cleaned);
     dupGroups.forEach((g) => g.photos.forEach((p) => { if (p.id !== g.keepId) next.add(p.id); }));
     persistCleaned(next);
+  };
+
+  // 端侧真看图打分：挑报告里前 N 张有网络图源的照片，逐张交给端侧视觉模型(MNN×Qwen-VL)评分
+  const runEdgeScore = async () => {
+    if (edgeRunning) return;
+    const picks = report.filter((c) => c.thumb && /^https?:/.test(c.thumb) && !edgeScored[c.id]).slice(0, 3);
+    if (!picks.length) return;
+    setEdgeRunning(true);
+    for (const c of picks) {
+      setEdgeScored((m) => ({ ...m, [c.id]: { reason: '端侧看图中…', busy: true } }));
+      let score: number | undefined; let reason = '';
+      try {
+        const out = await edgeSafe.vision(c.thumb!, '看这张照片，判断收藏价值。只回 JSON：{"score":0到100的整数,"reason":"一句不超过18字的中文理由"}');
+        try { const j = JSON.parse((out || '').replace(/```json|```/g, '').trim()); score = Math.round(Number(j.score)); reason = String(j.reason || '').slice(0, 24); } catch { /* 宽松解析 */ }
+        if (score === undefined || Number.isNaN(score)) { const mt = (out || '').match(/(\d{1,3})/); if (mt) score = Math.min(100, Number(mt[1])); if (!reason) reason = (out || '').replace(/\s+/g, ' ').slice(0, 24); }
+      } catch { /* 端侧不可用 */ }
+      setEdgeScored((m) => ({ ...m, [c.id]: { score, reason: reason || '端侧未就绪', busy: false } }));
+    }
+    setEdgeRunning(false);
   };
 
   // 报告流：按分数高→低；扫描进度内的才显示（边扫边出）
@@ -88,6 +111,14 @@ export default function PhotosCuratorRunPage({ onBack }: Props) {
             ))}
           </div>
           <div className="text-[10px] text-black/55 leading-snug mt-1">{c.reason}</div>
+          {edgeScored[c.id] && (
+            <div className="mt-1 flex items-center gap-1.5 text-[10px]">
+              <span className="font-pixel text-[6px] px-1 py-0.5 text-black shrink-0" style={{ background: '#00ff88' }}>端侧实判</span>
+              {edgeScored[c.id].busy
+                ? <span className="text-black/45 animate-pulse">端侧看图中…</span>
+                : <span className="text-black/70 leading-snug">{edgeScored[c.id].score != null ? <b>{edgeScored[c.id].score} 分</b> : null} · {edgeScored[c.id].reason}</span>}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -137,6 +168,10 @@ export default function PhotosCuratorRunPage({ onBack }: Props) {
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
         {segment === '整理报告' && (
           <>
+            <button onClick={runEdgeScore} disabled={edgeRunning}
+              className="w-full flex items-center justify-center gap-1.5 border-2 border-black bg-[#00ff88] text-black px-2 py-1.5 text-[11px] font-bold shadow-[2px_2px_0_#000] active:translate-y-px disabled:opacity-50">
+              {edgeRunning ? '端侧看图打分中…' : '▶ 端侧看图打分 · 真模型看 3 张'}
+            </button>
             {shown.map(Card)}
             {!done && <div className="text-center font-pixel text-[8px] text-black/40 py-2 tracking-widest animate-pulse">端侧整理中… {scanned}/{total}</div>}
             {done && <div className="text-center font-pixel text-[8px] text-black/30 py-1 tracking-widest">端侧管「挑和找」· 高价值已钉地球与日历</div>}

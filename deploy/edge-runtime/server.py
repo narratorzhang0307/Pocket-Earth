@@ -59,13 +59,13 @@ def _infer(model, prompt: str, images=None) -> str:
 
 
 def _ensure(name: str):
-    if name in _models:
-        return _models[name]
     cfg = VISION_CONFIG if name == 'vision' else TEXT_CONFIG
     if not cfg or not os.path.isfile(cfg):
         raise RuntimeError(f'模型 {name} 未配置或 config 不存在: {cfg}')
-    _models[name] = _load(cfg)
-    return _models[name]
+    if cfg in _models:           # 按 config 路径缓存：文本/视觉指向同一多模态模型时只载一份
+        return _models[cfg]
+    _models[cfg] = _load(cfg)
+    return _models[cfg]
 
 
 def _strip_fence(t: str) -> str:
@@ -85,7 +85,7 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == '/health':
-            ready = {n: (n in _models or bool(VISION_CONFIG if n == 'vision' else TEXT_CONFIG)) for n in ('text', 'vision')}
+            ready = {'text': os.path.isfile(TEXT_CONFIG or ''), 'vision': os.path.isfile(VISION_CONFIG or '')}
             return self._send({'status': 'ok', 'backend': 'mnn', 'models': ready})
         self._send({'error': 'not found'}, 404)
 
