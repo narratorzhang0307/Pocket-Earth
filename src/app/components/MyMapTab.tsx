@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import type mapboxgl from 'mapbox-gl';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import EarthMap from './EarthMap';
@@ -7,7 +7,7 @@ import { getUserMarks, subscribeUserMarks } from '../data/userMarks';
 import { getPlanets, getVisiblePlanets, subscribePlanets, togglePlanet, removePlanet } from '../data/planets';
 import { trackDownload } from '../data/themePlanet';
 import { showcasePhotos } from '../data/photos';
-import { getMoodStickers, addMoodSticker, removeMoodSticker, subscribeMood, resolveMoodPlace, pickStickerColor, pickRot } from '../data/geoStickers';
+import { getMoodStickers, addMoodSticker, removeMoodSticker, updateMoodStickerPos, commitStickers, seedStickers, subscribeMood, resolveMoodPlace, pickStickerColor, pickRot } from '../data/geoStickers';
 import { Plus, X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import MapLegend from './MapLegend';
@@ -69,6 +69,17 @@ interface MyMapTabProps {
   onViewInAR?: () => void;
 }
 
+// 标定点：固定到西湖周边真实经纬度（WGS84，源自 OpenStreetMap / Wikidata）。
+// 其中的「文字卡片」现已解耦为可拖动便贴（见 seedStickers）；此处保留绿点 + 照片 + 连线。
+const ANNOTATIONS = [
+  { id: 1, lng: 120.14703, lat: 30.260901, place: '断桥残雪', date: '03.14', text: '风卷着灰尘', dir: 'right', dx: 30, dy: -20, img: showcasePhotos[0]?.thumb, imgProps: { w: 60, h: 80, rot: -5, dx: -20, dy: 30 } },
+  { id: 2, lng: 120.1416133, lat: 30.2542019, place: '平湖秋月', date: '03.15', text: '霓虹闪烁的夜晚', dir: 'left', dx: -40, dy: 20, img: showcasePhotos[1]?.thumb, imgProps: { w: 70, h: 70, rot: 8, dx: 40, dy: -10 } },
+  { id: 3, lng: 120.1405, lat: 30.2408, place: '三潭印月', date: '03.18', text: '我听到心跳', dir: 'right', dx: 35, dy: 15, img: showcasePhotos[2]?.thumb, imgProps: { w: 80, h: 60, rot: -3, dx: -50, dy: 40 } },
+  { id: 4, lng: 120.13739, lat: 30.23439, place: '花港观鱼', date: '03.20', text: '雨滴打在柏油路', dir: 'left', dx: -20, dy: -30, img: showcasePhotos[3]?.thumb, imgProps: { w: 65, h: 85, rot: 6, dx: 25, dy: 35 } },
+  { id: 5, lng: 120.14501, lat: 30.23388, place: '雷峰塔', date: '03.21', text: '沉默的公交站牌', dir: 'left', dx: -35, dy: -10 },
+  { id: 6, lng: 120.12868, lat: 30.25217, place: '曲院风荷', date: '03.22', text: '远方的车灯', dir: 'right', dx: 25, dy: -25 },
+];
+
 // 西湖（杭州）—— 地图默认聚焦点，初始缩放到能看到湖周街道
 const WEST_LAKE_CENTER: [number, number] = [120.140, 30.246];
 const INITIAL_ZOOM = 13.6;
@@ -99,15 +110,7 @@ function centralAngleDeg(a: [number, number], b: [number, number]) {
 }
 
 export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
-  // 每个标定点固定到西湖周边真实经纬度（WGS84，源自 OpenStreetMap / Wikidata）
-  const annotations = [
-    { id: 1, lng: 120.14703, lat: 30.260901, place: '断桥残雪', date: '03.14', text: '风卷着灰尘', dir: 'right', dx: 30, dy: -20, img: showcasePhotos[0]?.thumb, imgProps: { w: 60, h: 80, rot: -5, dx: -20, dy: 30 } },
-    { id: 2, lng: 120.1416133, lat: 30.2542019, place: '平湖秋月', date: '03.15', text: '霓虹闪烁的夜晚', dir: 'left', dx: -40, dy: 20, img: showcasePhotos[1]?.thumb, imgProps: { w: 70, h: 70, rot: 8, dx: 40, dy: -10 } },
-    { id: 3, lng: 120.1405, lat: 30.2408, place: '三潭印月', date: '03.18', text: '我听到心跳', dir: 'right', dx: 35, dy: 15, img: showcasePhotos[2]?.thumb, imgProps: { w: 80, h: 60, rot: -3, dx: -50, dy: 40 } },
-    { id: 4, lng: 120.13739, lat: 30.23439, place: '花港观鱼', date: '03.20', text: '雨滴打在柏油路', dir: 'left', dx: -20, dy: -30, img: showcasePhotos[3]?.thumb, imgProps: { w: 65, h: 85, rot: 6, dx: 25, dy: 35 } },
-    { id: 5, lng: 120.14501, lat: 30.23388, place: '雷峰塔', date: '03.21', text: '沉默的公交站牌', dir: 'left', dx: -35, dy: -10 },
-    { id: 6, lng: 120.12868, lat: 30.25217, place: '曲院风荷', date: '03.22', text: '远方的车灯', dir: 'right', dx: 25, dy: -25 },
-  ];
+  const annotations = ANNOTATIONS;
 
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
@@ -125,8 +128,43 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
   const [moodOpen, setMoodOpen] = useState(false);
   const [moodText, setMoodText] = useState('');
   const [moodBusy, setMoodBusy] = useState(false);
+  const [moodStyle, setMoodStyle] = useState<'color' | 'card'>('color'); // 「+」可产出两种便贴：彩色 / 白卡片
   // 点击标记后的详情弹层
   const [selected, setSelected] = useState<MarkerDetailData | null>(null);
+
+  // 便贴拖动：记录当前被拖的便贴 id 与「光标↔图钉」初始偏移，拖动中用 unproject 把它重钉到光标处
+  const dragRef = useRef<{ id: string; ox: number; oy: number; moved: boolean } | null>(null);
+  const onStickerDown = (e: React.PointerEvent, id: string, pin: { x: number; y: number }) => {
+    if (!map) return;
+    e.stopPropagation();
+    const r = map.getContainer().getBoundingClientRect();
+    dragRef.current = { id, ox: e.clientX - r.left - pin.x, oy: e.clientY - r.top - pin.y, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onStickerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d || !map) return;
+    d.moved = true;
+    const r = map.getContainer().getBoundingClientRect();
+    const ll = map.unproject([e.clientX - r.left - d.ox, e.clientY - r.top - d.oy]);
+    updateMoodStickerPos(d.id, ll.lat, ll.lng);
+  };
+  const onStickerUp = (e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (dragRef.current.moved) commitStickers(); // 仅真正拖动过才落盘
+    dragRef.current = null;
+  };
+
+  // 一次性把「已有的白色 LOC_SYNC 卡片」种入便贴库 → 解耦成可拖动的白卡片便贴
+  useEffect(() => {
+    seedStickers(
+      ANNOTATIONS.map((a) => ({
+        id: 'seed-' + a.id, lat: a.lat, lng: a.lng, text: a.text, place: a.place,
+        color: '#ffffff', rot: pickRot('seed-' + a.id), variant: 'card' as const, date: a.date,
+      })),
+    );
+  }, []);
 
   useEffect(() => {
     if (!map) return;
@@ -303,7 +341,14 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
     const center: [number, number] = map ? [map.getCenter().lng, map.getCenter().lat] : WEST_LAKE_CENTER;
     const { place, lng, lat } = await resolveMoodPlace(t, center);
     const id = 'mood-' + Date.now();
-    addMoodSticker({ id, lat, lng, text: t, place, color: pickStickerColor(t), rot: pickRot(id) });
+    const d = new Date();
+    const date = `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    addMoodSticker({
+      id, lat, lng, text: t, place, rot: pickRot(id),
+      variant: moodStyle,
+      color: moodStyle === 'card' ? '#ffffff' : pickStickerColor(t),
+      date: moodStyle === 'card' ? date : undefined,
+    });
     setMoodText(''); setMoodOpen(false); setMoodBusy(false);
     if (map) map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 3.2) });
   };
@@ -320,7 +365,7 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
       <div className="px-4 py-4 border-b-2 border-black bg-white">
         <h1 className="font-pixel text-xl uppercase tracking-wider mb-2">MY MAP</h1>
         <p className="text-xs text-black/70 tracking-wide font-medium">
-          城市属于我们。<br />
+          城市属于我们<br />
           <span className="opacity-60 text-[9px] font-pixel block mt-1">The city, filling with your poems.</span>
         </p>
       </div>
@@ -419,21 +464,7 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
                 </div>
               )}
 
-              {/* 文字卡片：仅街道级别出现 */}
-              {showDetail && (
-                <div
-                  className="absolute bg-white border-[1.5px] border-black shadow-[2px_2px_0px_rgba(0,0,0,1)] p-1.5 w-max z-10"
-                  style={{
-                    left: ann.dir === 'right' ? `${ann.dx}px` : 'auto',
-                    right: ann.dir === 'left' ? `${-ann.dx}px` : 'auto',
-                    top: `${ann.dy - 10}px`,
-                    opacity: detail,
-                  }}
-                >
-                  <div className="font-pixel text-[6px] text-black/60 mb-1 tracking-widest">{ann.date} • LOC_SYNC</div>
-                  <div className="text-[11px] font-bold leading-none">{ann.text}</div>
-                </div>
-              )}
+              {/* 文字卡片已解耦为可拖动的「白卡片便贴」（见心情贴图层 / seedStickers） */}
             </div>
           );
         })}
@@ -496,13 +527,38 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
               />
             );
           }
+          // 放大后：展开成卡片，鼠标可拖动重新摆放（白卡片 / 彩色两种风格）
+          const isCard = s.variant === 'card';
           return (
-            <div key={s.id} className="absolute z-[18] -translate-x-1/2 -translate-y-full group pointer-events-auto" style={{ left: `${pt.x}px`, top: `${pt.y}px` }}>
-              <div className="relative border-2 border-black shadow-[2px_3px_0_rgba(0,0,0,0.6)] px-2 py-1.5 max-w-[150px]" style={{ background: s.color, transform: `rotate(${s.rot}deg)` }}>
+            <div
+              key={s.id}
+              className="absolute z-[18] -translate-x-1/2 -translate-y-full group pointer-events-auto cursor-grab active:cursor-grabbing select-none touch-none"
+              style={{ left: `${pt.x}px`, top: `${pt.y}px` }}
+              onPointerDown={(e) => onStickerDown(e, s.id, pt)}
+              onPointerMove={onStickerMove}
+              onPointerUp={onStickerUp}
+            >
+              <div
+                className={`relative border-2 border-black shadow-[2px_3px_0_rgba(0,0,0,0.6)] px-2 py-1.5 max-w-[160px] ${isCard ? 'bg-white' : ''}`}
+                style={{ ...(isCard ? {} : { background: s.color }), transform: `rotate(${s.rot}deg)` }}
+              >
                 <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[#ff00ff] border-2 border-black" />
-                <div className="text-[11px] leading-snug text-black font-medium break-words">{s.text}</div>
-                <div className="font-pixel text-[6px] text-black/55 tracking-wider mt-1">◍ {s.place} · 心情贴</div>
-                <button onClick={() => removeMoodSticker(s.id)} className="absolute -top-2.5 -right-2.5 w-4 h-4 bg-black border border-black text-white items-center justify-center hidden group-hover:flex">
+                {isCard ? (
+                  <>
+                    <div className="font-pixel text-[6px] text-black/60 mb-1 tracking-widest">{s.date} • LOC_SYNC</div>
+                    <div className="text-[11px] font-bold leading-none text-black break-words">{s.text}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-[11px] leading-snug text-black font-medium break-words">{s.text}</div>
+                    <div className="font-pixel text-[6px] text-black/55 tracking-wider mt-1">◍ {s.place} · 心情贴</div>
+                  </>
+                )}
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => removeMoodSticker(s.id)}
+                  className="absolute -top-2.5 -right-2.5 w-4 h-4 bg-black border border-black text-white items-center justify-center hidden group-hover:flex"
+                >
                   <X className="w-2.5 h-2.5" strokeWidth={3} />
                 </button>
               </div>
@@ -516,6 +572,11 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
           {moodOpen ? (
             <div className="bg-white border-2 border-black shadow-[2px_2px_0_#000] p-2 w-[210px]">
               <div className="font-pixel text-[7px] tracking-widest mb-1.5 text-black/55">此刻的心情 · MOOD</div>
+              {/* 风格切换：彩色心情贴 / 白色 LOC_SYNC 卡片 */}
+              <div className="flex gap-1.5 mb-1.5">
+                <button onClick={() => setMoodStyle('color')} className={`flex-1 border-2 border-black text-[9px] py-0.5 ${moodStyle === 'color' ? 'bg-[#ffe08a] font-bold' : 'bg-white text-black/55'}`}>彩色</button>
+                <button onClick={() => setMoodStyle('card')} className={`flex-1 border-2 border-black text-[9px] py-0.5 ${moodStyle === 'card' ? 'bg-black text-white font-bold' : 'bg-white text-black/55'}`}>白卡片</button>
+              </div>
               <textarea value={moodText} onChange={(e) => setMoodText(e.target.value)} rows={2} placeholder="留下此刻的心情（可带地名）…" className="w-full border-2 border-black px-2 py-1 text-[11px] bg-[#EAEAEA] focus:outline-none resize-none" />
               <div className="flex gap-1.5 mt-1.5">
                 <button onClick={() => { setMoodOpen(false); setMoodText(''); }} className="flex-1 border-2 border-black bg-white text-[10px] py-1 active:translate-y-px">取消</button>

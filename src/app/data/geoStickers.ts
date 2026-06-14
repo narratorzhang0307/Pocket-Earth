@@ -14,6 +14,8 @@ export interface MoodSticker {
   color: string;      // 贴纸色
   rot: number;        // 轻微旋转
   createdAt: string;
+  variant?: 'color' | 'card'; // color=彩色心情贴（默认）；card=白色 LOC_SYNC 卡片
+  date?: string;      // card 变体头部日期（如 03.22）
 }
 
 const KEY = 'pe.geoStickers.v1';
@@ -34,6 +36,22 @@ export function addMoodSticker(s: Omit<MoodSticker, 'createdAt'> & { createdAt?:
   return full;
 }
 export function removeMoodSticker(id: string) { stickers = stickers.filter((s) => s.id !== id); persist(); emit(); }
+// 拖动中：仅更新内存位置并通知重渲染（不落盘，避免每帧写 localStorage）
+export function updateMoodStickerPos(id: string, lat: number, lng: number) {
+  stickers = stickers.map((s) => (s.id === id ? { ...s, lat, lng } : s));
+  emit();
+}
+// 拖动结束：落盘
+export function commitStickers() { persist(); }
+// 一次性把「已有的白色卡片」种入便贴库（按固定 id 去重 + 一次性标记，刷新不重复）
+export function seedStickers(seeds: Array<Omit<MoodSticker, 'createdAt'>>) {
+  const flagKey = KEY + '.seeded';
+  try { if (localStorage.getItem(flagKey)) return; } catch { /* 隐私模式：直接尝试种 */ }
+  const have = new Set(stickers.map((s) => s.id));
+  const fresh = seeds.filter((s) => !have.has(s.id)).map((s) => ({ ...s, createdAt: new Date().toISOString() }));
+  if (fresh.length) { stickers = [...stickers, ...fresh]; persist(); emit(); }
+  try { localStorage.setItem(flagKey, '1'); } catch { /* ignore */ }
+}
 export function subscribeMood(fn: () => void): () => void { subs.add(fn); return () => { subs.delete(fn); }; }
 
 // 贴纸暖色调色板（按文字 hash 选，稳定）
