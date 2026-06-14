@@ -444,40 +444,37 @@ export default function MyMapTab({ onViewInAR }: MyMapTabProps) {
         {map && zoom >= PREVIEW_ZOOM && visibleKinds.has('photo') && (() => {
           const b = map.getBounds();
           const out: React.ReactNode[] = [];
+          const phash = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); };
+          // 拍立得照片贴：白边 + 紫钉（星球用星球色钉）+ 方形/竖版随机 + 黑白，触碰变彩色
+          const polaroid = (key: string, lng: number, lat: number, thumb: string, h: number, pin: string, onClick: () => void) => {
+            const pt = map.project([lng, lat]);
+            const tall = h % 2 === 0; const rot = (h % 7) - 3;
+            return (
+              <button key={key} onClick={onClick}
+                className="absolute z-[15] bg-white p-1 pb-2.5 border border-black/50 shadow-[2px_3px_6px_rgba(0,0,0,0.4)] active:scale-95"
+                style={{ left: `${pt.x}px`, top: `${pt.y}px`, width: '58px', transform: `translate(-50%,-50%) rotate(${rot}deg)` }}>
+                <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full border border-black" style={{ background: pin }} />
+                <div className={`w-full ${tall ? 'aspect-[3/4]' : 'aspect-square'} overflow-hidden bg-[#d8d8d6]`}>
+                  <img src={thumb} className="w-full h-full object-cover grayscale hover:grayscale-0 active:grayscale-0 transition-all duration-500" loading="lazy" />
+                </div>
+              </button>
+            );
+          };
           for (const m of PHOTO_MARKERS) {
             if (!m.thumb) continue;
             if (!b || !b.contains([m.lng, m.lat])) continue;
-            const pt = map.project([m.lng, m.lat]);
-            out.push(
-              <button
-                key={'pv-' + m.id}
-                className="absolute z-[15] -translate-x-1/2 -translate-y-1/2 w-10 h-10 border-2 border-white shadow-[1px_1px_0_rgba(0,0,0,0.6)] overflow-hidden bg-[#d8d8d6] active:scale-95"
-                style={{ left: `${pt.x}px`, top: `${pt.y}px` }}
-                onClick={() => setSelected({ kind: 'photo', full: m.full, thumb: m.thumb, city: (m.label || '').split(',')[0] })}
-              >
-                <img src={m.thumb} alt={m.label} className="w-full h-full object-cover" loading="lazy" />
-              </button>
-            );
-            if (out.length >= 80) break;
+            out.push(polaroid('pv-' + m.id, m.lng, m.lat, m.thumb, phash(m.id), '#ff00ff',
+              () => setSelected({ kind: 'photo', full: m.full, thumb: m.thumb, city: (m.label || '').split(',')[0] })));
+            if (out.length >= 70) break;
           }
-          // 星球照片预览（可见星球，视口内）
           for (const pl of getVisiblePlanets()) {
             for (const ph of pl.photos) {
               if (!b || !b.contains([ph.lng, ph.lat])) continue;
-              const pt = map.project([ph.lng, ph.lat]);
-              out.push(
-                <button
-                  key={'pp-' + ph.id}
-                  className="absolute z-[15] -translate-x-1/2 -translate-y-1/2 w-10 h-10 overflow-hidden active:scale-95"
-                  style={{ left: `${pt.x}px`, top: `${pt.y}px`, border: `2px solid ${pl.color}`, boxShadow: '1px 1px 0 rgba(0,0,0,0.6)' }}
-                  onClick={() => { setSelected({ kind: 'photo', full: ph.full, thumb: ph.thumb, city: ph.alt || '照片', authorName: ph.author, authorLink: ph.authorUrl, photoLink: ph.link }); trackDownload(ph.downloadLocation); }}
-                >
-                  <img src={ph.thumb} alt={ph.alt} className="w-full h-full object-cover" loading="lazy" />
-                </button>
-              );
-              if (out.length >= 140) break;
+              out.push(polaroid('pp-' + ph.id, ph.lng, ph.lat, ph.thumb, phash(ph.id), pl.color,
+                () => { setSelected({ kind: 'photo', full: ph.full, thumb: ph.thumb, city: ph.alt || '照片', authorName: ph.author, authorLink: ph.authorUrl, photoLink: ph.link }); trackDownload(ph.downloadLocation); }));
+              if (out.length >= 130) break;
             }
-            if (out.length >= 140) break;
+            if (out.length >= 130) break;
           }
           return out;
         })()}
