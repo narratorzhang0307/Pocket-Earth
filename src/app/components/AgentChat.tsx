@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { edgeSafe } from '../../../frost-agent/edge/contract';
 import { getProfileSummary } from '../../../frost-agent/harness/profile';
+import { HUMAN_VOICE, cleanVoice } from '../../../frost-agent/harness/persona';
 
 // 通用「对话层」：各 agent（读书 / 观影 / 城市播客）共用的对话框。
 // 端侧先对用户这句话做意图分类（端侧「挑」），云大脑(/api/frost-llm → DeepSeek)结合用户数据作答（云「写」）。
@@ -41,12 +42,12 @@ export default function AgentChat({ config }: { config: AgentChatConfig }) {
 
     // 长期口味画像（跨会话）注入云脑 system —— 只进云端，端侧 classify 不接触
     const taste = getProfileSummary();
-    const system = `${config.persona}\n\n${taste ? taste + '\n' : ''}【用户数据】\n${config.context()}\n\n要求：结合用户的长期口味画像与本领域数据回答，具体、有判断、像懂行的朋友，不要套话、不超过 180 字。`;
+    const system = `${config.persona}\n\n${taste ? taste + '\n' : ''}【用户数据】\n${config.context()}\n\n${HUMAN_VOICE}\n\n要求：结合用户的长期口味画像与本领域数据回答，具体、有判断、像懂行的朋友，不超过 180 字。`;
     const prompt = `${history ? history + '\n' : ''}用户：${text}`;
     let reply = '';
     try {
       const r = await fetch('/api/frost-llm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prompt, system }) });
-      if (r.ok) { const d = await r.json(); reply = typeof d?.text === 'string' ? d.text : ''; }
+      if (r.ok) { const d = await r.json(); reply = cleanVoice(typeof d?.text === 'string' ? d.text : ''); }
     } catch { /* 降级 */ }
     if (!reply) reply = '我这边大脑暂时连不上（需要 DeepSeek key）。不过你的数据都在左边「数据层」里，可以先翻翻。';
     setTurns((t) => [...t, { role: 'agent', text: reply, intent: intent || undefined }]);
