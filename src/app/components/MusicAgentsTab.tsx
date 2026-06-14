@@ -1,9 +1,6 @@
 // 音乐 tab —— frost-agent 架构控制台：展示 v2.0 各 agent（curator / harness / pipeline）
 // 内容静态提炼自 frost-agent/ARCHITECTURE.md 与各 contract.md
-import { useState, useEffect } from 'react';
-import { getFrostBrain } from '../../../frost-agent/harness/brain';
-import { summarizeTaste } from '../../../frost-agent/harness/profile';
-import { recordHealth } from '../../../frost-agent/harness/health';
+import { useState } from 'react';
 import MusicCuratorPage from './MusicCuratorPage';
 import PodcastCuratorPage from './PodcastCuratorPage';
 import MoviesCuratorPage from './MoviesCuratorPage';
@@ -75,16 +72,7 @@ const RUN_BY_NAME: Record<string, Running> = {
 
 export default function MusicAgentsTab() {
   const [running, setRunning] = useState<Running>(null);
-  const [taste, setTaste] = useState('');
 
-  // fire-and-forget：后台请一句话长期口味画像（fingerprint 缓存，画像没变就秒回缓存、不动云脑），不阻塞 UI
-  useEffect(() => {
-    let alive = true;
-    summarizeTaste(getFrostBrain())
-      .then((t) => { recordHealth('profile.narrative', true); if (alive && t) setTaste(t); })
-      .catch((e) => recordHealth('profile.narrative', false, String(e)));
-    return () => { alive = false; };
-  }, []);
   if (running === 'music') return <MusicCuratorPage onBack={() => setRunning(null)} />;
   if (running === 'podcast') return <PodcastCuratorPage onBack={() => setRunning(null)} />;
   if (running === 'movies') return <MoviesCuratorPage onBack={() => setRunning(null)} />;
@@ -110,7 +98,6 @@ export default function MusicAgentsTab() {
         <p className="text-xs text-black/70 tracking-wide font-medium">
           把地球作为方法的 agent 框架。<br />
           <span className="opacity-60 text-[9px] font-pixel block mt-1">Router · Skill · Sub-agent · Tool</span>
-          {taste && <span className="block mt-1.5 text-[10px] text-black/60 leading-snug">◍ 你的口味 · {taste}</span>}
         </p>
       </div>
 
