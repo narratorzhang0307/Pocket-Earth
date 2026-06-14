@@ -17,7 +17,8 @@
 - 一首歌钉到**歌手出身地 / 歌曲所写的城市**；
 - 一张照片按**经纬度**归位，高价值的才留下；
 - 一段行程走完，每个停留点变成地球上的**私人足迹**；
-- 你甚至可以一句话造一颗**主题星球**（「日落星球」「鸟类星球」）。
+- 你甚至可以一句话造一颗**主题星球**（「日落星球」「鸟类星球」）；
+- 或在赛博漫游时，把**此刻的心情**贴到世界某个角落，自带经纬度、永远钉在那里。
 
 > 一句话：**把地球作为方法，让空间成为记忆的索引。**
 
@@ -29,9 +30,9 @@
 
 | Tab | 名称 | 内容 |
 |---|---|---|
-| 左 | **PHOTOS · 照片** | 同一批照片以「时间 / 日历 / 杂志」三种方式呈现（缩略图灰度、点开彩色） |
-| 中 | **🌐 地球** | Mapbox 地球；五类标记 + 用户星球叠加；点开看详情，放大看缩略预览 |
-| 右 | **AGENTS · FROST-AGENT** | 多智能体控制台：6 curator + 自定义星球 + 多 agent 圆桌议事，全部可运行 |
+| 左 | **PHOTOS · 照片** | 同一批照片按时间戳以「时间 / 日历 / 杂志」三视图**自适应**呈现；杂志点开是**手帐双页翻书**（缩略图灰度、触碰彩色） |
+| 中 | **🌐 地球** | Mapbox 地球；五类标记 + 用户星球；放大看**拍立得照片贴**，左上角加号可贴**自带经纬度的心情贴**；点开看详情 |
+| 右 | **AGENTS · FROST-AGENT** | 多智能体控制台：6 curator + 自定义星球 + 圆桌议事 + 心情漫游，全部可运行 |
 
 中间的地球是**统一索引**——所有 agent 的产出最终都落在这里。
 
@@ -110,7 +111,7 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 ---
 
-## 四、七个 Agent（数据层 + 对话层）
+## 四、Agent 一览（数据层 + 对话层）
 
 控制台（右 Tab）里全部 agent 都可点击运行。其中四个采用**双 Tab 结构**——左「数据层」（你的名录），右「对话层」（懂你数据的领域 agent）：
 
@@ -123,6 +124,9 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 | **photos-curator** | 端侧持续整理：整理报告 / 重复清理 / 高价值（单页·执行型） | — | 经纬度归位（青） |
 | **travel-curator** | 端侧按喜好规划逐日行程（单页） | — | 完成行程 → 私人足迹（玫红） |
 | **planet-builder** | 自定义 agent：一句话造主题星球（Unsplash 抓图） | — | 按主题纬度带散布成新图层 |
+| **mood-curator** | 心绪漫游：写下赛博浏览各地的心情 | — | 端侧判地名 → 心情贴钉地理坐标 |
+
+> 此外还有 **圆桌议事**（多 agent 同台讨论 / 辩论 / 法庭，见第五节）—— 不落地球，是另一种 agent 协作形态。
 
 每个对话层都**数据接地**——把你该领域的记录注入提示，所以「我读过的书里哪些讲孤独」会真的引用你书架上的《百年孤独》《雪国》《老人与海》逐一点评，而不是泛泛而谈。
 
@@ -153,7 +157,7 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 
 ## 六、联动与地图
 
-### 5.1 tab1 ⇄ tab2 实时联动
+### 6.1 tab1 ⇄ tab2 实时联动
 
 ```
 各 agent 产出落点 ──► userMarks / planets （localStorage 发布订阅 store）
@@ -165,14 +169,15 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
                        地球图层实时刷新（无需刷新页面）
 ```
 
-在「观影」里记一部电影、在「读书」里记一本书、走完一段行程、造一颗星球——地球上立刻多出对应的点。
+在「观影」里记一部电影、在「读书」里记一本书、走完一段行程、造一颗星球、贴一条心情——地球上立刻多出对应的点。
 
-### 5.2 地图标记系统
+### 6.2 标记 + 拍立得 + 心情贴
 
 - **五类基础标记**（mapbox symbol 方块图层，碰撞合并、缩小只显其一、放大散开）：音乐 `#00ff88` / 照片 `#00e5ff` / 电影 `#ffb000` / 书 `#b388ff` / 行程 `#ff3b6b`。
-- **用户星球**（mapbox circle 圆点图层，每颗一色）：与基础方块在**形状上**就可区分。
+- **用户星球**（mapbox circle 圆点图层，每颗一色），与方块在形状上即可区分。
+- **拍立得照片贴**：放大到一定缩放，照片以拍立得呈现（白边 + 紫钉 + 方形 / 竖版随机 + 黑白触碰彩色），全球城市可见，杭州亦有。
+- **心情贴**（左上角加号）：写一句心情 → 端侧判地名 → 钉到该经纬度。**自带经纬度**，地球缩放 / 平移到任意程度都钉在原地、不跟屏幕跑；localStorage 持久（`geoStickers` store，与「心情漫游」agent 同一份）。
 - **点击看详情**：照片灯箱 / 电影票根 / 藏书票 / 行程足迹 / 城市；星球照片含 Unsplash 署名。
-- **放大看预览**：缩放到一定级别，照片以真实缩略图叠在地球上，点开看大图。
 - **图例**：左下角两段式（基础类 + 星球），可逐层开关 / 删除。
 
 ---
@@ -185,7 +190,9 @@ frost-agent 不是一个聊天机器人，而是一套**主智能体编排子智
 | 音乐流派表 | 端侧并行分类 619 位艺人 → `src/app/data/music-genres.json` | ✅ 入库 |
 | 电台资料库 | 96 城 621 曲（音频 / 封面 / 文稿） | ❌ 私有，`resource-library/` |
 | 读书 | 18 部文学种子（豆瓣读书导出为空时的兜底） | ✅ 入库 |
-| 照片 | 本地图池 + 真实城市坐标 | ❌ 私有 |
+| 照片坐标 / 时间 | `photo-places.json`（真实城市坐标，含杭州）+ `photo-dates.json`（伪造时间 2020–2025，驱动三视图自适应） | ✅ 入库 |
+| 照片图源 | 本地图池（缩略 + 高清两版） | ❌ 私有 |
+| 心情贴 | 用户运行时手写，端侧判地名（`geoStickers` localStorage） | 本地 |
 | 星球照片 | Unsplash 搜索（CDN 直链，不下载、不落 OSS，合规署名） | 运行时抓取 |
 
 > 后端代理（dev 中间件，密钥只在服务端）：`/api/frost-llm`（DeepSeek）、`/api/edge`（端侧）、`/api/unsplash`（主题抓图）。
@@ -200,11 +207,13 @@ src/app/
     MyMapTab / MarkerDetail / MapLegend          # 地球与标记
     MusicCuratorPage / BooksCuratorPage / …      # 双 Tab 容器（数据层 + 对话层）
     CuratorTabsPage / AgentChat                  # 通用双 Tab 与通用对话层
-    PhotosCuratorRunPage / TravelRunPage / PlanetBuilderRunPage
+    PhotosCuratorRunPage / TravelRunPage / PlanetBuilderRunPage / MoodRunPage
     CouncilPage / PixelAvatar                    # 多 agent 圆桌议事 + 像素头像
+    MagazineBook                                 # 杂志点开后的手帐双页翻书
   council/          # 圆桌议事（解耦）：agents 花名册 + engine 回合引擎
   data/             # 解耦数据层：movies / books / musicCatalog / photos / travel
-                    # userMarks / planets（联动 store）/ themePlanet / photoCuration / mapMarkers / photo-dates
+                    # userMarks / planets / geoStickers（联动 store）/ themePlanet / photoCuration / mapMarkers
+                    # photo-places + photo-dates（坐标 + 伪造时间，驱动三视图自适应）
 
 frost-agent/        # 内核 Harness（详见其 ARCHITECTURE.md / HARNESS-PRINCIPLES.md）
   harness/          # persona / brain / router / llmRoute / memory / validator / types
