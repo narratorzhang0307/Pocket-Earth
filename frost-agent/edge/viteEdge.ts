@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import { ollamaChatBody } from '../provider-compat/qwen'
 
 // 端侧推理中间件：/api/edge → 探测本机 ollama → 路由到 Qwen3（文本）/ Qwen-VL（视觉）。
 // 无 ollama 时返回 stub（规则兜底），前端调用方自动降级，demo 照常工作。
@@ -29,13 +30,7 @@ export function frostEdge(env: Record<string, string>): Plugin {
     const r = await fetch(OLLAMA + '/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: opts?.model || MODEL,
-        messages,
-        stream: false,
-        think: opts?.think ?? false,
-        ...(opts?.json ? { format: 'json' } : {}),
-      }),
+      body: JSON.stringify(ollamaChatBody({ model: opts?.model || MODEL, messages, json: opts?.json, think: opts?.think })),
     })
     const d = await r.json()
     return d?.message?.content || ''
