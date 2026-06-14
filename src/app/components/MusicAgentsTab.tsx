@@ -8,6 +8,7 @@ import BooksCuratorPage from './BooksCuratorPage';
 import PhotosCuratorRunPage from './PhotosCuratorRunPage';
 import TravelRunPage from './TravelRunPage';
 import PlanetBuilderRunPage from './PlanetBuilderRunPage';
+import CouncilPage from './CouncilPage';
 
 interface AgentItem {
   name: string;
@@ -35,14 +36,21 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
       { name: 'planet-builder', role: '说一个主题，抓 Unsplash 照片造一颗主题星球', status: '可运行' },
     ],
   },
+  {
+    title: 'COUNCIL',
+    sub: '多 agent 同台 · 你来组局',
+    items: [
+      { name: 'council-room', role: '圆桌 / 辩论 / 法庭：多个 agent 讨论、出谋划策', status: '可运行' },
+    ],
+  },
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | null;
 const RUN_BY_NAME: Record<string, Running> = {
   'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
   'books-curator': 'books', 'photos-curator': 'photos', 'travel-curator': 'travel',
-  'planet-builder': 'planet',
+  'planet-builder': 'planet', 'council-room': 'council',
 };
 
 export default function MusicAgentsTab() {
@@ -54,6 +62,7 @@ export default function MusicAgentsTab() {
   if (running === 'photos') return <PhotosCuratorRunPage onBack={() => setRunning(null)} />;
   if (running === 'travel') return <TravelRunPage onBack={() => setRunning(null)} />;
   if (running === 'planet') return <PlanetBuilderRunPage onBack={() => setRunning(null)} />;
+  if (running === 'council') return <CouncilPage onBack={() => setRunning(null)} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">
