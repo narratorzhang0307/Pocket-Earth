@@ -3,6 +3,8 @@ import { ChevronLeft, Film, Plus, Camera, Star } from 'lucide-react';
 import { movieRecords, movieTotal, movieMappedTotal, movieCountries, movieCountry, type MovieRecord } from '../data/movies';
 import { addUserMark, getUserMarksByKind, subscribeUserMarks, spreadCoord } from '../data/userMarks';
 import { httpEdge } from '../../../frost-agent/edge/httpEdge';
+import { AnimatePresence } from 'motion/react';
+import MarkerDetail, { type MarkerDetailData } from './MarkerDetail';
 
 // movies-curator 运行页 —— 观影 agent。
 // 1) 把豆瓣观影记录做成「电影票根」流；2) 用户记一笔/截图 → 端侧识别 → 实时钉到中间的地球（与 tab1 联动）。
@@ -14,7 +16,7 @@ const AMBER = '#ffb000';
 interface Ticket {
   key: string; title: string; original?: string; director?: string;
   country: string; year?: number | null; rating?: number | null; type?: string; date?: string;
-  pinned: boolean; user?: boolean;
+  synopsis?: string; pinned: boolean; user?: boolean;
 }
 
 const stars = (r?: number | null) => {
@@ -24,7 +26,7 @@ const stars = (r?: number | null) => {
 
 function fromRecord(m: MovieRecord): Ticket {
   return { key: 'd' + m.id, title: m.title, original: m.original, director: m.director, country: m.country,
-    year: m.year, rating: m.rating, type: m.type, date: m.date, pinned: !!movieCountry(m.country) };
+    year: m.year, rating: m.rating, type: m.type, date: m.date, synopsis: m.synopsis, pinned: !!movieCountry(m.country) };
 }
 
 export default function MoviesRunPage({ onBack, embedded }: Props) {
@@ -38,13 +40,14 @@ export default function MoviesRunPage({ onBack, embedded }: Props) {
   const [toast, setToast] = useState<string | null>(null);
   const [vision, setVision] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [selected, setSelected] = useState<MarkerDetailData | null>(null);
 
   // 用户记录（带地球落点）→ 票根
   const userTickets: Ticket[] = getUserMarksByKind('movie').map((m) => {
     const meta = (m.meta || {}) as Record<string, unknown>;
     return { key: m.id, title: m.label || String(meta.title || ''), original: String(meta.original || ''),
       director: String(meta.director || ''), country: String(meta.country || ''), year: meta.year as number,
-      rating: meta.rating as number, type: String(meta.type || '电影'), date: String(meta.date || ''), pinned: true, user: true };
+      rating: meta.rating as number, type: String(meta.type || '电影'), date: String(meta.date || ''), synopsis: String(meta.synopsis || ''), pinned: true, user: true };
   });
 
   // 豆瓣记录：按观看日期倒序，取近 60 条做票根流
@@ -165,7 +168,7 @@ export default function MoviesRunPage({ onBack, embedded }: Props) {
       {/* 票根流 */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
         {feed.map((t) => (
-          <div key={t.key} className="border-2 border-black shadow-[2px_2px_0_rgba(0,0,0,0.85)] bg-white relative overflow-hidden">
+          <button key={t.key} onClick={() => setSelected({ kind: 'movie', title: t.title, original: t.original, director: t.director, country: t.country, year: t.year, rating: t.rating, date: t.date, synopsis: t.synopsis })} className="w-full text-left border-2 border-black shadow-[2px_2px_0_rgba(0,0,0,0.85)] bg-white relative overflow-hidden active:translate-y-px">
             {/* 票根顶部 amber 条 */}
             <div className="flex items-center justify-between px-2.5 py-1" style={{ background: AMBER }}>
               <span className="font-pixel text-[7px] tracking-widest text-black">ADMIT ONE · 观影票根{t.user ? ' · NEW' : ''}</span>
@@ -193,7 +196,7 @@ export default function MoviesRunPage({ onBack, embedded }: Props) {
                 <span className="font-pixel text-[13px] leading-none mt-1" style={{ color: '#000' }}>{(t.year || '').toString().slice(-2) || '··'}</span>
               </div>
             </div>
-          </div>
+          </button>
         ))}
         <div className="text-center text-[8px] font-pixel text-black/30 py-1 tracking-widest">
           票根来自豆瓣观影记录 · 端侧管「认片」· 落点钉地球
@@ -206,6 +209,11 @@ export default function MoviesRunPage({ onBack, embedded }: Props) {
           {toast}
         </div>
       )}
+
+      {/* 点票根 → 和地球点开同款的票根详情（含 100 字简介）*/}
+      <AnimatePresence>
+        {selected && <MarkerDetail data={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
     </div>
   );
 }
