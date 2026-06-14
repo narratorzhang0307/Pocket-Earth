@@ -8,7 +8,7 @@ import { httpEdge } from '../../../frost-agent/edge/httpEdge';
 // 把读过的书钉到「故事 / 作者之地」，在地球上铺成一张阅读地图（藏书票 EX LIBRIS 卡片）。
 // 和 obsidian 的区别：不是书目笔记，而是「书 → 地理 → 地球落点」；端侧模型从书封/书页截图认书。
 
-interface Props { onBack: () => void }
+interface Props { onBack: () => void; embedded?: boolean }
 const VIOLET = '#b388ff';
 
 interface Plate {
@@ -21,7 +21,7 @@ const stars = (r?: number | null) => {
   return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, 5 - n);
 };
 
-export default function BooksRunPage({ onBack }: Props) {
+export default function BooksRunPage({ onBack, embedded }: Props) {
   const [, force] = useReducer((x) => x + 1, 0);
   useEffect(() => subscribeUserMarks(force), []);
 
@@ -87,17 +87,19 @@ export default function BooksRunPage({ onBack }: Props) {
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
-        <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
-          <ChevronLeft className="w-4 h-4" strokeWidth={3} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="font-pixel text-[11px] tracking-wider truncate">BOOKS-CURATOR</div>
-          <div className="text-[9px] text-black/45 truncate">读书 agent · 阅读地图 · 钉到故事之地</div>
+      {/* Header（嵌入双 tab 时隐藏，大头交给外层）*/}
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
+          <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
+            <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="font-pixel text-[11px] tracking-wider truncate">BOOKS-CURATOR</div>
+            <div className="text-[9px] text-black/45 truncate">读书 agent · 阅读地图 · 钉到故事之地</div>
+          </div>
+          <BookOpen className="w-4 h-4" strokeWidth={2.5} style={{ color: VIOLET }} />
         </div>
-        <BookOpen className="w-4 h-4" strokeWidth={2.5} style={{ color: VIOLET }} />
-      </div>
+      )}
 
       {/* Stat strip */}
       <div className="px-4 py-2.5 border-b-2 border-black bg-black shrink-0" style={{ color: VIOLET }}>

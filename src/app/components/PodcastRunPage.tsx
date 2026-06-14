@@ -15,6 +15,7 @@ const PODS = RADIO_CITIES.filter((c) => c.podcast && c.podcast.length > 0).map((
 
 interface Props {
   onBack: () => void;
+  embedded?: boolean;
 }
 
 // 可达示例音源：真实音源（私有对象存储直链）当前不可达时回落，保证播放闭环出声。
@@ -22,7 +23,7 @@ function fallbackAudio(i: number): string {
   return `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${(i % 8) + 1}.mp3`;
 }
 
-export default function PodcastRunPage({ onBack }: Props) {
+export default function PodcastRunPage({ onBack, embedded }: Props) {
   const [sel, setSel] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [srcMode, setSrcMode] = useState<'real' | 'fallback'>('real');
@@ -69,17 +70,19 @@ export default function PodcastRunPage({ onBack }: Props) {
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
-        <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
-          <ChevronLeft className="w-4 h-4" strokeWidth={3} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="font-pixel text-[11px] tracking-wider truncate">PODCAST-CURATOR</div>
-          <div className="text-[9px] text-black/45 truncate">城市播客 agent · {PODS.length} 城有播客</div>
+      {/* Header（嵌入双 tab 时隐藏，大头交给外层）*/}
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
+          <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
+            <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="font-pixel text-[11px] tracking-wider truncate">PODCAST-CURATOR</div>
+            <div className="text-[9px] text-black/45 truncate">城市播客 agent · {PODS.length} 城有播客</div>
+          </div>
+          <Mic className="w-4 h-4 text-black/50" strokeWidth={2.5} />
         </div>
-        <Mic className="w-4 h-4 text-black/50" strokeWidth={2.5} />
-      </div>
+      )}
 
       {/* 播客列表 */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">

@@ -8,7 +8,7 @@ import { httpEdge } from '../../../frost-agent/edge/httpEdge';
 // 1) 把豆瓣观影记录做成「电影票根」流；2) 用户记一笔/截图 → 端侧识别 → 实时钉到中间的地球（与 tab1 联动）。
 // 和 obsidian 的区别：不是纯文本笔记，而是「票根 + 地球落点」，端侧模型负责从截图认片。
 
-interface Props { onBack: () => void }
+interface Props { onBack: () => void; embedded?: boolean }
 const AMBER = '#ffb000';
 
 interface Ticket {
@@ -27,7 +27,7 @@ function fromRecord(m: MovieRecord): Ticket {
     year: m.year, rating: m.rating, type: m.type, date: m.date, pinned: !!movieCountry(m.country) };
 }
 
-export default function MoviesRunPage({ onBack }: Props) {
+export default function MoviesRunPage({ onBack, embedded }: Props) {
   const [, force] = useReducer((x) => x + 1, 0);
   useEffect(() => subscribeUserMarks(force), []);
 
@@ -105,17 +105,19 @@ export default function MoviesRunPage({ onBack }: Props) {
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans relative overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
-        <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
-          <ChevronLeft className="w-4 h-4" strokeWidth={3} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="font-pixel text-[11px] tracking-wider truncate">MOVIES-CURATOR</div>
-          <div className="text-[9px] text-black/45 truncate">观影 agent · {movieTotal} 部 · 票根钉地球</div>
+      {/* Header（嵌入双 tab 时隐藏，大头交给外层）*/}
+      {!embedded && (
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b-2 border-black bg-white shrink-0">
+          <button onClick={onBack} className="w-8 h-8 border-2 border-black bg-white flex items-center justify-center shadow-[1px_1px_0_#000] active:translate-y-px">
+            <ChevronLeft className="w-4 h-4" strokeWidth={3} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="font-pixel text-[11px] tracking-wider truncate">MOVIES-CURATOR</div>
+            <div className="text-[9px] text-black/45 truncate">观影 agent · {movieTotal} 部 · 票根钉地球</div>
+          </div>
+          <Film className="w-4 h-4" strokeWidth={2.5} style={{ color: AMBER }} />
         </div>
-        <Film className="w-4 h-4" strokeWidth={2.5} style={{ color: AMBER }} />
-      </div>
+      )}
 
       {/* Stat strip */}
       <div className="px-4 py-2.5 border-b-2 border-black bg-black shrink-0" style={{ color: AMBER }}>
