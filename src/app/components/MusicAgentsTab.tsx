@@ -13,6 +13,7 @@ import TravelRunPage from './TravelRunPage';
 import PlanetBuilderRunPage from './PlanetBuilderRunPage';
 import CouncilPage from './CouncilPage';
 import MoodRunPage from './MoodRunPage';
+import PublicPlazaPage from './PublicPlazaPage';
 
 interface AgentItem {
   name: string;
@@ -54,14 +55,22 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
       { name: 'podcast-curator', role: '城市播客：每座城一段深度文化叙事', status: '可运行' },
     ],
   },
+  {
+    title: 'PLAZA',
+    sub: 'agent 代理社交 · 前瞻',
+    items: [
+      { name: 'public-plaza', role: '委派你的 agent 去公共广场，带画像遇见相似的人，夜里回来报告', status: '可运行' },
+    ],
+  },
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | 'mood' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | 'mood' | 'plaza' | null;
 const RUN_BY_NAME: Record<string, Running> = {
   'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
   'books-curator': 'books', 'photos-curator': 'photos', 'travel-curator': 'travel',
   'planet-builder': 'planet', 'council-room': 'council', 'mood-curator': 'mood',
+  'public-plaza': 'plaza',
 };
 
 export default function MusicAgentsTab() {
@@ -85,6 +94,7 @@ export default function MusicAgentsTab() {
   if (running === 'planet') return <PlanetBuilderRunPage onBack={() => setRunning(null)} />;
   if (running === 'council') return <CouncilPage onBack={() => setRunning(null)} />;
   if (running === 'mood') return <MoodRunPage onBack={() => setRunning(null)} />;
+  if (running === 'plaza') return <PublicPlazaPage onBack={() => setRunning(null)} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">
@@ -127,17 +137,19 @@ export default function MusicAgentsTab() {
               {g.items.map((a) => {
                 const target = RUN_BY_NAME[a.name];
                 const runnable = !!target;
+                const plaza = a.name === 'public-plaza';   // 代理社交：克制的区分色（石板蓝灰）
+                const dot = plaza ? '#6b7a8f' : '#00ff88';
                 return (
                   <button
                     key={a.name}
                     onClick={runnable ? () => setRunning(target) : undefined}
                     className={`w-full text-left flex items-center gap-3 bg-white border-2 border-black p-2.5 shadow-[2px_2px_0_rgba(0,0,0,0.85)] transition-colors ${
-                      runnable ? 'hover:bg-[#00ff88]/10 active:translate-y-px' : 'cursor-default'
+                      runnable ? (plaza ? 'hover:bg-[#6b7a8f]/10 active:translate-y-px' : 'hover:bg-[#00ff88]/10 active:translate-y-px') : 'cursor-default'
                     }`}
                   >
-                    {/* 绿色方块（呼应地图标记） */}
-                    <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black shadow-[1px_1px_0px_#00ff88]">
-                      <div className="w-1.5 h-1.5 bg-[#00ff88]" />
+                    {/* 方块（呼应地图标记）；代理社交用区分色 */}
+                    <div className="w-3 h-3 shrink-0 bg-black flex items-center justify-center border border-black" style={{ boxShadow: `1px 1px 0px ${dot}` }}>
+                      <div className="w-1.5 h-1.5" style={{ background: dot }} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-pixel text-[9px] tracking-wide truncate">{a.name}</div>
