@@ -8,14 +8,13 @@ import AgentChat, { type AgentChatConfig } from './AgentChat';
 interface Props {
   onBack: () => void;
   title: string;
-  sub: string;
   leftLabel: string;
   rightLabel: string;
   left: ReactNode;            // 数据层（嵌入式 run page）
   chat: AgentChatConfig;      // 对话层配置
 }
 
-export default function CuratorTabsPage({ onBack, title, sub, leftLabel, rightLabel, left, chat }: Props) {
+export default function CuratorTabsPage({ onBack, title, leftLabel, rightLabel, left, chat }: Props) {
   const [tab, setTab] = useState<'data' | 'chat'>('data');
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] overflow-hidden">
@@ -26,7 +25,6 @@ export default function CuratorTabsPage({ onBack, title, sub, leftLabel, rightLa
           </button>
           <div className="flex-1 min-w-0">
             <div className="font-pixel text-[11px] tracking-wider truncate">{title}</div>
-            <div className="text-[9px] text-black/45 truncate">{sub}</div>
           </div>
         </div>
         <div className="flex border-2 border-black bg-[#EAEAEA] p-0.5">

@@ -38,7 +38,6 @@ export default function MoodRunPage({ onBack }: Props) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-pixel text-[11px] tracking-wider truncate">MOOD-CURATOR</div>
-          <div className="text-[9px] text-black/45 truncate">心绪 · 漫游 · 把此刻心情钉到世界各地</div>
         </div>
         <MapPin className="w-4 h-4" strokeWidth={2.5} style={{ color: '#caa400' }} />
       </div>

@@ -12,8 +12,7 @@ export default function PodcastCuratorPage({ onBack }: { onBack: () => void }) {
     <CuratorTabsPage
       onBack={onBack}
       title="PODCAST-CURATOR"
-      sub="城市播客库 + 城市对话"
-      leftLabel="城市 · 播客"
+      leftLabel="城市"
       rightLabel="Frost_City"
       left={<PodcastRunPage onBack={onBack} embedded />}
       chat={{

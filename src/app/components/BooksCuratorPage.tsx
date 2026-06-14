@@ -12,8 +12,7 @@ export default function BooksCuratorPage({ onBack }: { onBack: () => void }) {
     <CuratorTabsPage
       onBack={onBack}
       title="BOOKS-CURATOR"
-      sub="书架名录 + 读书对话"
-      leftLabel="书架 · 我的书"
+      leftLabel="书架"
       rightLabel="Frost_Book"
       left={<BooksRunPage onBack={onBack} embedded />}
       chat={{

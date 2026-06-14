@@ -62,7 +62,6 @@ export default function PlanetBuilderRunPage({ onBack }: Props) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-pixel text-[11px] tracking-wider truncate">PLANET-BUILDER</div>
-          <div className="text-[9px] text-black/45 truncate">自定义星球 agent · 一句话造一颗主题星球</div>
         </div>
         <Globe2 className="w-4 h-4" strokeWidth={2.5} style={{ color: ACCENT }} />
       </div>

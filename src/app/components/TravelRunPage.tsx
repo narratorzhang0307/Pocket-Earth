@@ -69,7 +69,6 @@ export default function TravelRunPage({ onBack }: Props) {
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-pixel text-[11px] tracking-wider truncate">TRAVEL-CURATOR</div>
-          <div className="text-[9px] text-black/45 truncate">行程 agent · 端侧规划 · 完成即钉星球</div>
         </div>
         <Plane className="w-4 h-4" strokeWidth={2.5} style={{ color: ROSE }} />
       </div>

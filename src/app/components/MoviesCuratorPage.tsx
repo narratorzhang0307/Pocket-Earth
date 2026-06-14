@@ -21,8 +21,7 @@ export default function MoviesCuratorPage({ onBack }: { onBack: () => void }) {
     <CuratorTabsPage
       onBack={onBack}
       title="MOVIES-CURATOR"
-      sub="观影名录 + 观影对话"
-      leftLabel="片库 · 我的观影"
+      leftLabel="片库"
       rightLabel="Frost_Movie"
       left={<MoviesRunPage onBack={onBack} embedded />}
       chat={{
