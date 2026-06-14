@@ -4,6 +4,7 @@
 // 收敛靠「固定发言序列（每人 N 轮）+ 用户可随时喊停(AbortSignal)」，天然不会无限互相回复。
 import { agentById, type CouncilAgent } from './agents';
 import { edgeSafe } from '../../../frost-agent/edge/contract';
+import { HUMAN_VOICE, cleanVoice } from '../../../frost-agent/harness/persona';
 
 export type CouncilMode = 'roundtable' | 'debate' | 'courtroom' | 'brainstorm';
 export type CouncilBackend = 'cloud' | 'edge';  // 云端大模型(DeepSeek) / 端侧本地(Qwen via ollama)
@@ -93,11 +94,11 @@ export async function runCouncil(o: RunOpts): Promise<void> {
     const system =
       `你是「${a.name}」（${a.handle}）。${a.persona}\n` +
       `${tone}\n议题：「${o.topic || '（自由发挥）'}」。在座：${names}。${roleLine}\n` +
-      `规则：用你的身份视角和说话风格发言；可以回应、补充或反驳前面的人；简短有观点（80-130 字）；不要复读别人、不要写旁白、不要"我是…"式自我介绍，直接说观点。`;
+      `规则：用你的身份视角和说话风格发言；可以回应、补充或反驳前面的人；简短有观点（80-130 字）；不要复读别人、不要写旁白、不要"我是…"式自我介绍，直接说观点。\n${HUMAN_VOICE}`;
     const user =
       `${recent ? `【目前的讨论】\n${recent}\n\n` : ''}现在轮到你（${a.name}）发言` +
       `${step.role === '庭长裁断' ? '，请综合各方做出简短的裁断 / 总结' : ''}。`;
-    let text = await callLLM(system, user, o.signal, o.backend);
+    let text = cleanVoice(await callLLM(system, user, o.signal, o.backend));
     if (o.signal.aborted) break;
     if (!text) text = '（一时语塞，先过。）';
     const msg: CouncilMsg = { id: `cm${idx}`, speakerId: a.id, name: a.name, color: a.color, text, idx, role: step.role };
