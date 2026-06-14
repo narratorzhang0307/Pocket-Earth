@@ -9,6 +9,7 @@ import PhotosCuratorRunPage from './PhotosCuratorRunPage';
 import TravelRunPage from './TravelRunPage';
 import PlanetBuilderRunPage from './PlanetBuilderRunPage';
 import CouncilPage from './CouncilPage';
+import MoodRunPage from './MoodRunPage';
 
 interface AgentItem {
   name: string;
@@ -31,9 +32,10 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
   },
   {
     title: 'CUSTOM',
-    sub: '自定义 agent · 一句话造星球',
+    sub: '自定义 agent · 造星球 / 记心情',
     items: [
       { name: 'planet-builder', role: '说一个主题，抓 Unsplash 照片造一颗主题星球', status: '可运行' },
+      { name: 'mood-curator', role: '记录全球赛博漫游的心情，钉到地图', status: '可运行' },
     ],
   },
   {
@@ -46,11 +48,11 @@ const GROUPS: { title: string; sub: string; items: AgentItem[] }[] = [
 ];
 
 
-type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | null;
+type Running = 'music' | 'podcast' | 'movies' | 'books' | 'photos' | 'travel' | 'planet' | 'council' | 'mood' | null;
 const RUN_BY_NAME: Record<string, Running> = {
   'music-curator': 'music', 'podcast-curator': 'podcast', 'movies-curator': 'movies',
   'books-curator': 'books', 'photos-curator': 'photos', 'travel-curator': 'travel',
-  'planet-builder': 'planet', 'council-room': 'council',
+  'planet-builder': 'planet', 'council-room': 'council', 'mood-curator': 'mood',
 };
 
 export default function MusicAgentsTab() {
@@ -63,6 +65,7 @@ export default function MusicAgentsTab() {
   if (running === 'travel') return <TravelRunPage onBack={() => setRunning(null)} />;
   if (running === 'planet') return <PlanetBuilderRunPage onBack={() => setRunning(null)} />;
   if (running === 'council') return <CouncilPage onBack={() => setRunning(null)} />;
+  if (running === 'mood') return <MoodRunPage onBack={() => setRunning(null)} />;
 
   return (
     <div className="h-full flex flex-col bg-[#EAEAEA] font-sans">

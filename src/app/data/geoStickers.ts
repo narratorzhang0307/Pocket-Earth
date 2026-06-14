@@ -86,3 +86,10 @@ export async function resolveMoodPlace(text: string, fallback: [number, number])
   } catch { /* 端侧不可用 → 兜底 */ }
   return { place: '此处', lng: fallback[0], lat: fallback[1] };
 }
+
+// 没判出地名时，随机落到一座城市（赛博漫游到随机一处）
+export function randomPlace(): { place: string; lng: number; lat: number } {
+  const ks = Object.keys(PLACE_COORDS);
+  const k = ks[Math.floor(Math.random() * ks.length)];
+  return { place: k, lng: PLACE_COORDS[k][0], lat: PLACE_COORDS[k][1] };
+}
