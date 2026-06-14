@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Image, Globe, Radio } from 'lucide-react';
+import { Image, Globe, Sparkles } from 'lucide-react';
 import PhotosTab from './components/PhotosTab';
 import MyMapTab from './components/MyMapTab';
 import MusicAgentsTab from './components/MusicAgentsTab';
 
-type Tab = 'photos' | 'earth' | 'music';
+type Tab = 'photos' | 'earth' | 'agents';
 
-// 仿「上街去」手机 App：393×852 手机框 + 底部三 tab（照片 / 地球 / 音乐）
+// 393×852 手机框 + 底部三 tab（照片 / 地球 / 智能体）
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('earth');
 
@@ -17,7 +17,7 @@ export default function App() {
         <div className="flex-1 overflow-hidden relative pb-[84px]">
           {activeTab === 'photos' && <PhotosTab />}
           {activeTab === 'earth' && <MyMapTab />}
-          {activeTab === 'music' && <MusicAgentsTab />}
+          {activeTab === 'agents' && <MusicAgentsTab />}
         </div>
 
         {/* 底部 tab bar */}
@@ -49,15 +49,15 @@ export default function App() {
               </button>
             </div>
 
-            {/* 右：音乐 */}
+            {/* 右：智能体控制台 */}
             <button
-              onClick={() => setActiveTab('music')}
+              onClick={() => setActiveTab('agents')}
               className={`flex flex-col items-center gap-1.5 transition-all w-20 ${
-                activeTab === 'music' ? 'text-[#00aa55]' : 'text-black/40 hover:text-black'
+                activeTab === 'agents' ? 'text-[#00aa55]' : 'text-black/40 hover:text-black'
               }`}
             >
-              <Radio className="w-6 h-6" strokeWidth={2.5} />
-              <span className="text-[8px] font-pixel uppercase tracking-widest">Music</span>
+              <Sparkles className="w-6 h-6" strokeWidth={2.5} />
+              <span className="text-[8px] font-pixel uppercase tracking-widest">Agents</span>
             </button>
           </div>
         </div>
